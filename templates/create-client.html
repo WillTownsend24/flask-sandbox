@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<title>Create a client</title>
+{% endblock %}
+
+{% block body %}
+<form action="", method="">
+    <a href="/">Login to account</a>
+</form>
+<form action="", method="">
+    <a href="/create-professional">Create a professional</a>
+</form>
+
+<form action="">
+    <input type="text" name="username_client" id ="username" placeholder="Username" />
+    <input type="text" name="password_client" id="password" placeholder="Password" />
+    <input type="submit" value="Create Account" id="btn_create_client" />
+</form>
+
+{% if new_username | length < 1 %}
+<h3> There are no users</h3>
+{% else %}
+<table>
+    <tr>
+        <th>ID</th>
+        <th>Username</th>
+        <th>Password</th>
+        <th>Created</th>
+    </tr>
+    {% for user in current_username %}
+    <tr>
+        <td>{{}}</td>
+    </tr>
+</table>
+{% endblock %}
