@@ -1,9 +1,109 @@
-{% extends 'client.html' %}
-
-{% block head %}
-<title> </title>
-{% endblock %}
-
+{% extends "base.html" %}
+{% block title %}Food Diary — NutriTrack{% endblock %}
 {% block content %}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Food Diary</h1>
+        <p class="page-subtitle">{{ selected_date.strftime('%A, %d %B %Y') }}</p>
+    </div>
+    <a href="{{ url_for('log_food') }}" class="btn btn-primary">+ Log Food</a>
+</div>
+
+<!-- Date navigator -->
+<div class="date-nav card">
+    <a href="{{ url_for('food_diary', date=(selected_date - selected_date.__class__.resolution).isoformat()) }}" class="btn btn-outline btn-sm">← Previous</a>
+    <input type="date" id="date-picker" value="{{ selected_date.isoformat() }}" class="date-input"
+           onchange="window.location.href='{{ url_for('food_diary') }}?date=' + this.value">
+    <a href="{{ url_for('food_diary', date=(selected_date + selected_date.__class__.resolution).isoformat()) }}" class="btn btn-outline btn-sm">Next →</a>
+</div>
+
+<!-- Nutrition summary for the day -->
+<div class="stats-grid section-gap">
+    <div class="stat-card">
+        <div class="stat-icon">🔥</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ totals.calories | int }}</div>
+            <div class="stat-label">kcal</div>
+            {% if guideline and guideline.daily_calories %}<div class="stat-target">/ {{ guideline.daily_calories | int }} target</div>{% endif %}
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">💪</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ totals.protein }}g</div>
+            <div class="stat-label">Protein</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">🌾</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ totals.carbs }}g</div>
+            <div class="stat-label">Carbs</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">🥑</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ totals.fat }}g</div>
+            <div class="stat-label">Fat</div>
+        </div>
+    </div>
+</div>
+
+<!-- Meals -->
+{% for meal_type, entries in meals.items() %}
+<div class="card section-gap">
+    <h2 class="card-title meal-title meal-title--{{ meal_type }}">
+        {% if meal_type == 'breakfast' %}🌅{% elif meal_type == 'lunch' %}☀️{% elif meal_type == 'dinner' %}🌙{% else %}🍎{% endif %}
+        {{ meal_type | title }}
+    </h2>
+
+    {% if entries %}
+    <table class="diary-table">
+        <thead>
+            <tr>
+                <th>Food</th>
+                <th>Amount</th>
+                <th>Calories</th>
+                <th>Protein</th>
+                <th>Carbs</th>
+                <th>Fat</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in entries %}
+            <tr>
+                <td class="food-name-cell">
+                    {{ entry.food_name }}
+                    {% if entry.professional_comment %}
+                        <span class="pro-comment-indicator" title="{{ entry.professional_comment }}">💬</span>
+                    {% endif %}
+                </td>
+                <td>{{ entry.quantity_g }}g</td>
+                <td>{{ ((entry.calories or 0) * entry.quantity_g / 100) | round | int }} kcal</td>
+                <td>{{ ((entry.protein_g or 0) * entry.quantity_g / 100) | round(1) }}g</td>
+                <td>{{ ((entry.carbs_g or 0) * entry.quantity_g / 100) | round(1) }}g</td>
+                <td>{{ ((entry.fat_g or 0) * entry.quantity_g / 100) | round(1) }}g</td>
+                <td>
+                    <form method="POST" action="{{ url_for('delete_entry', entry_id=entry.id) }}" onsubmit="return confirm('Delete this entry?')">
+                        <button type="submit" class="btn-icon btn-danger" title="Delete">🗑</button>
+                    </form>
+                </td>
+            </tr>
+            {% if entry.professional_comment %}
+            <tr class="comment-row">
+                <td colspan="7"><span class="pro-comment">💬 <em>{{ entry.professional_comment }}</em></span></td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty-meal">Nothing logged for {{ meal_type }}.</p>
+    {% endif %}
+</div>
+{% endfor %}
 
 {% endblock %}

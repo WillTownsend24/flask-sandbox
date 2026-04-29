@@ -3,11 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="{{url_for("static", filename="styles.css")}}" />
-    {% block head %}{% endblock %}
+    <title>{% block title %}NutriTrack{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    {% block body %}{% endblock %}
-   
+
+{% if session.user_id %}
+<nav class="navbar">
+    <a href="{{ url_for('index') }}" class="nav-logo">Nutri<span>Track</span></a>
+    <div class="nav-links">
+        {% if session.role == 'subscriber' %}
+            <a href="{{ url_for('subscriber_home') }}" class="nav-link">Dashboard</a>
+            <a href="{{ url_for('food_diary') }}" class="nav-link">Diary</a>
+            <a href="{{ url_for('log_food') }}" class="nav-link">Log Food</a>
+            <a href="{{ url_for('recipes') }}" class="nav-link">Recipes</a>
+            <a href="{{ url_for('my_recipes') }}" class="nav-link">My Recipes</a>
+        {% else %}
+            <a href="{{ url_for('professional_home') }}" class="nav-link">Dashboard</a>
+            <a href="{{ url_for('find_clients') }}" class="nav-link">Find Clients</a>
+            <a href="{{ url_for('recipes') }}" class="nav-link">Recipes</a>
+        {% endif %}
+        <a href="{{ url_for('notifications') }}" class="nav-link notif-bell">
+            🔔
+            {% if unread_count > 0 %}
+                <span class="notif-badge">{{ unread_count }}</span>
+            {% endif %}
+        </a>
+        <a href="{{ url_for('logout') }}" class="nav-link logout-link">Logout</a>
+    </div>
+</nav>
+{% endif %}
+
+<main class="main-content">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-container">
+                {% for category, message in messages %}
+                    <div class="flash flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+</main>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block scripts %}{% endblock %}
 </body>
 </html>

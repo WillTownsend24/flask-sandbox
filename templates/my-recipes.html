@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}My Recipes — NutriTrack{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">My Recipes</h1>
+        <p class="page-subtitle">Your saved, tried, and favourite recipes</p>
+    </div>
+    <a href="{{ url_for('recipes') }}" class="btn btn-outline">Browse All Recipes</a>
+</div>
+
+{% for status, label, icon in [('favourite','Favourites','❤️'), ('tried','Tried','✅'), ('want_to_try','Want to Try','🔖')] %}
+<div class="card section-gap">
+    <h2 class="card-title">{{ icon }} {{ label }} ({{ grouped[status] | length }})</h2>
+    {% if grouped[status] %}
+    <div class="recipes-grid">
+        {% for sr in grouped[status] %}
+        {% set recipe = sr.recipe %}
+        <a href="{{ url_for('view_recipe', recipe_id=recipe.id) }}" class="recipe-card">
+            <h3 class="recipe-title">{{ recipe.title }}</h3>
+            {% if recipe.description %}
+                <p class="recipe-desc">{{ recipe.description[:80] }}{% if recipe.description|length > 80 %}...{% endif %}</p>
+            {% endif %}
+            <div class="recipe-meta-row">
+                {% if recipe.calories_per_serving %}
+                    <span class="recipe-meta-item">🔥 {{ recipe.calories_per_serving | int }} kcal</span>
+                {% endif %}
+                {% if recipe.cost_estimate %}
+                    <span class="recipe-meta-item">💷 {{ recipe.cost_estimate }}</span>
+                {% endif %}
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state-text">Nothing here yet. <a href="{{ url_for('recipes') }}">Browse recipes →</a></p>
+    {% endif %}
+</div>
+{% endfor %}
+
+{% endblock %}

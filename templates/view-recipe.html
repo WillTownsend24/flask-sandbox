@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}{{ recipe.title }} — NutriTrack{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <a href="{{ url_for('recipes') }}" class="btn btn-outline btn-sm">← All Recipes</a>
+</div>
+
+<div class="recipe-detail-header card">
+    <div class="recipe-detail-title-row">
+        <h1 class="recipe-detail-title">{{ recipe.title }}</h1>
+        {% if recipe.average_rating() %}
+            <div class="big-rating">⭐ {{ recipe.average_rating() }} / 5</div>
+        {% endif %}
+    </div>
+
+    {% if recipe.description %}
+        <p class="recipe-detail-desc">{{ recipe.description }}</p>
+    {% endif %}
+
+    <div class="recipe-info-chips">
+        {% if recipe.prep_time_mins %}
+            <div class="info-chip">
+                <span class="chip-icon">🥄</span>
+                <span class="chip-label">Prep</span>
+                <span class="chip-value">{{ recipe.prep_time_mins }} min</span>
+            </div>
+        {% endif %}
+        {% if recipe.cook_time_mins %}
+            <div class="info-chip">
+                <span class="chip-icon">🍳</span>
+                <span class="chip-label">Cook</span>
+                <span class="chip-value">{{ recipe.cook_time_mins }} min</span>
+            </div>
+        {% endif %}
+        {% if recipe.servings %}
+            <div class="info-chip">
+                <span class="chip-icon">🍽</span>
+                <span class="chip-label">Serves</span>
+                <span class="chip-value">{{ recipe.servings }}</span>
+            </div>
+        {% endif %}
+        {% if recipe.cost_estimate %}
+            <div class="info-chip">
+                <span class="chip-icon">💷</span>
+                <span class="chip-label">Cost</span>
+                <span class="chip-value">{{ recipe.cost_estimate }}</span>
+            </div>
+        {% endif %}
+    </div>
+
+    {% if recipe.calories_per_serving %}
+    <div class="recipe-nutrition-strip">
+        <div class="nutrition-chip">🔥 {{ recipe.calories_per_serving | int }} kcal</div>
+        {% if recipe.protein_per_serving %}<div class="nutrition-chip">💪 {{ recipe.protein_per_serving }}g protein</div>{% endif %}
+        {% if recipe.carbs_per_serving %}<div class="nutrition-chip">🌾 {{ recipe.carbs_per_serving }}g carbs</div>{% endif %}
+        {% if recipe.fat_per_serving %}<div class="nutrition-chip">🥑 {{ recipe.fat_per_serving }}g fat</div>{% endif %}
+        <small class="per-serving-note">per serving</small>
+    </div>
+    {% endif %}
+
+    {% if recipe.tags %}
+    <div class="recipe-tags">
+        {% for t in recipe.tags.split(',') %}
+            <a href="{{ url_for('recipes', tag=t.strip()) }}" class="tag">{{ t.strip() }}</a>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<div class="recipe-body">
+    <!-- Ingredients -->
+    <div class="card recipe-section">
+        <h2 class="card-title">Ingredients</h2>
+        <ul class="ingredient-list">
+            {% for ing in ingredients %}
+            <li class="ingredient-item">
+                <span class="ingredient-name">{{ ing.name }}</span>
+                <span class="ingredient-amount">{{ ing.amount }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- Instructions -->
+    <div class="card recipe-section">
+        <h2 class="card-title">Method</h2>
+        <div class="instructions">
+            {% for step in recipe.instructions.split('\n') %}
+                {% if step.strip() %}
+                    <p class="instruction-step">{{ step.strip() }}</p>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Save recipe (subscribers only) -->
+{% if session.role == 'subscriber' %}
+<div class="card section-gap">
+    <h2 class="card-title">Save This Recipe</h2>
+    <form method="POST" action="{{ url_for('save_recipe', recipe_id=recipe.id) }}" class="save-form">
+        <div class="save-options">
+            {% for status, label, icon in [('want_to_try','Want to Try','🔖'), ('tried','Tried It','✅'), ('favourite','Favourite','❤️')] %}
+            <label class="save-option {% if saved_status == status %}save-option--active{% endif %}">
+                <input type="radio" name="status" value="{{ status }}" {% if saved_status == status %}checked{% endif %}>
+                <span>{{ icon }} {{ label }}</span>
+            </label>
+            {% endfor %}
+        </div>
+        <button type="submit" class="btn btn-primary">Save</button>
+    </form>
+</div>
+{% endif %}
+
+<!-- Comments -->
+<div class="card section-gap">
+    <h2 class="card-title">Comments & Reviews ({{ comments | length }})</h2>
+
+    <form method="POST" action="{{ url_for('add_recipe_comment', recipe_id=recipe.id) }}" class="comment-form">
+        <div class="form-group">
+            <textarea name="comment" rows="3" placeholder="Share your thoughts on this recipe..." required></textarea>
+        </div>
+        <div class="form-row rating-row">
+            <div class="form-group">
+                <label>Rating (optional)</label>
+                <div class="star-rating">
+                    {% for i in range(1, 6) %}
+                    <label class="star-label">
+                        <input type="radio" name="rating" value="{{ i }}">
+                        <span class="star">★</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Post Comment</button>
+        </div>
+    </form>
+
+    <div class="comments-list section-gap">
+        {% for c in comments %}
+        <div class="comment-item">
+            <div class="comment-meta">
+                <span class="comment-author">{{ c.user.full_name }}</span>
+                {% if c.rating %}
+                    <span class="comment-rating">
+                        {% for i in range(c.rating) %}⭐{% endfor %}
+                    </span>
+                {% endif %}
+                <span class="comment-date">{{ c.created.strftime('%d %b %Y') }}</span>
+            </div>
+            <p class="comment-text">{{ c.comment }}</p>
+        </div>
+        {% else %}
+        <p class="empty-state-text">No comments yet. Be the first!</p>
+        {% endfor %}
+    </div>
+</div>
+
+{% endblock %}

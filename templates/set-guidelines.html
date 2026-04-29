@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Set Guidelines — NutriTrack{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Set Guidelines for {{ subscriber.full_name }}</h1>
+        <p class="page-subtitle">Define daily nutritional targets</p>
+    </div>
+    <a href="{{ url_for('view_client', subscriber_id=subscriber.id) }}" class="btn btn-outline">← Back to Diary</a>
+</div>
+
+{% if existing %}
+<div class="info-banner">
+    <span>ℹ️</span>
+    <span>Current guidelines were last set on {{ existing.created.strftime('%d %b %Y') }}. Submitting this form will create a new set.</span>
+</div>
+{% endif %}
+
+<div class="card card--narrow section-gap">
+    <form method="POST" class="auth-form">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="daily_calories">Daily Calories (kcal)</label>
+                <input type="number" id="daily_calories" name="daily_calories" step="10" min="500" max="10000"
+                       value="{{ existing.daily_calories | int if existing and existing.daily_calories else '' }}"
+                       placeholder="e.g. 2000">
+            </div>
+            <div class="form-group">
+                <label for="daily_protein_g">Protein (g)</label>
+                <input type="number" id="daily_protein_g" name="daily_protein_g" step="1" min="0" max="500"
+                       value="{{ existing.daily_protein_g | int if existing and existing.daily_protein_g else '' }}"
+                       placeholder="e.g. 120">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="daily_carbs_g">Carbohydrates (g)</label>
+                <input type="number" id="daily_carbs_g" name="daily_carbs_g" step="1" min="0" max="1000"
+                       value="{{ existing.daily_carbs_g | int if existing and existing.daily_carbs_g else '' }}"
+                       placeholder="e.g. 250">
+            </div>
+            <div class="form-group">
+                <label for="daily_fat_g">Fat (g)</label>
+                <input type="number" id="daily_fat_g" name="daily_fat_g" step="1" min="0" max="500"
+                       value="{{ existing.daily_fat_g | int if existing and existing.daily_fat_g else '' }}"
+                       placeholder="e.g. 65">
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="daily_fibre_g">Fibre (g)</label>
+            <input type="number" id="daily_fibre_g" name="daily_fibre_g" step="1" min="0" max="200"
+                   value="{{ existing.daily_fibre_g | int if existing and existing.daily_fibre_g else '' }}"
+                   placeholder="e.g. 30">
+        </div>
+        <div class="form-group">
+            <label for="notes">Notes / Advice for Subscriber</label>
+            <textarea id="notes" name="notes" rows="4"
+                      placeholder="Add any dietary advice, restrictions, or encouragement...">{{ existing.notes if existing and existing.notes else '' }}</textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Save Guidelines & Notify Subscriber</button>
+    </form>
+</div>
+
+{% endblock %}

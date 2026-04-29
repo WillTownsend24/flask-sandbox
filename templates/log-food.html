@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Log Food — NutriTrack{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Log Food</h1>
+        <p class="page-subtitle">Search the Open Food Facts database</p>
+    </div>
+</div>
+
+<div class="card">
+    <form method="POST" id="search-form">
+        <input type="hidden" name="action" value="search">
+        <div class="search-row">
+            <input type="text" name="query" id="search-input" value="{{ query }}"
+                   placeholder="Search for a food (e.g. chicken breast, apple, oats...)"
+                   class="search-input" autocomplete="off" required>
+            <button type="submit" class="btn btn-primary">Search</button>
+        </div>
+    </form>
+</div>
+
+{% if results %}
+<div class="card section-gap">
+    <h2 class="card-title">Results for "{{ query }}"</h2>
+    <div class="results-grid">
+        {% for item in results %}
+        <div class="result-card" onclick="selectFood(this)"
+             data-name="{{ item.name }}"
+             data-calories="{{ item.calories }}"
+             data-protein="{{ item.protein }}"
+             data-carbs="{{ item.carbs }}"
+             data-fat="{{ item.fat }}"
+             data-fibre="{{ item.fibre }}"
+             data-sugar="{{ item.sugar }}">
+            <div class="result-name">{{ item.name }}</div>
+            {% if item.brand %}<div class="result-brand">{{ item.brand }}</div>{% endif %}
+            <div class="result-macros">
+                <span class="macro-pill macro-cal">{{ item.calories }} kcal</span>
+                <span class="macro-pill macro-protein">P: {{ item.protein }}g</span>
+                <span class="macro-pill macro-carb">C: {{ item.carbs }}g</span>
+                <span class="macro-pill macro-fat">F: {{ item.fat }}g</span>
+            </div>
+            <div class="result-note">per 100g</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% elif query %}
+<div class="card section-gap">
+    <p class="empty-state-text">No results found for "{{ query }}". Try a different search term.</p>
+</div>
+{% endif %}
+
+<!-- Log form (hidden until a food is selected) -->
+<div id="log-panel" class="card section-gap" style="display:none;">
+    <h2 class="card-title">Log: <span id="log-food-name"></span></h2>
+    <form method="POST" id="log-form">
+        <input type="hidden" name="action" value="log">
+        <input type="hidden" name="food_name" id="hidden-name">
+        <input type="hidden" name="calories" id="hidden-calories">
+        <input type="hidden" name="protein" id="hidden-protein">
+        <input type="hidden" name="carbs" id="hidden-carbs">
+        <input type="hidden" name="fat" id="hidden-fat">
+        <input type="hidden" name="fibre" id="hidden-fibre">
+        <input type="hidden" name="sugar" id="hidden-sugar">
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="quantity">Quantity (grams)</label>
+                <input type="number" id="quantity" name="quantity" value="100" min="1" max="5000" step="1" required>
+            </div>
+            <div class="form-group">
+                <label for="meal_type">Meal</label>
+                <select id="meal_type" name="meal_type">
+                    <option value="breakfast">Breakfast</option>
+                    <option value="lunch" selected>Lunch</option>
+                    <option value="dinner">Dinner</option>
+                    <option value="snack">Snack</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="log_date">Date</label>
+                <input type="date" id="log_date" name="log_date" value="{{ '' }}">
+            </div>
+        </div>
+
+        <!-- Live nutrition preview -->
+        <div class="nutrition-preview" id="nutrition-preview">
+            <h3>Nutrition for <span id="preview-qty">100</span>g:</h3>
+            <div class="preview-macros">
+                <div class="preview-macro"><span id="prev-cal">—</span><small>kcal</small></div>
+                <div class="preview-macro"><span id="prev-protein">—</span><small>protein</small></div>
+                <div class="preview-macro"><span id="prev-carbs">—</span><small>carbs</small></div>
+                <div class="preview-macro"><span id="prev-fat">—</span><small>fat</small></div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Add to Diary</button>
+        <button type="button" class="btn btn-outline" onclick="clearSelection()">Clear</button>
+    </form>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Set today's date as default
+document.getElementById('log_date').value = new Date().toISOString().split('T')[0];
+
+let selectedFood = null;
+
+function selectFood(card) {
+    // Deselect previous
+    document.querySelectorAll('.result-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+
+    selectedFood = {
+        name: card.dataset.name,
+        calories: parseFloat(card.dataset.calories) || 0,
+        protein: parseFloat(card.dataset.protein) || 0,
+        carbs: parseFloat(card.dataset.carbs) || 0,
+        fat: parseFloat(card.dataset.fat) || 0,
+        fibre: parseFloat(card.dataset.fibre) || 0,
+        sugar: parseFloat(card.dataset.sugar) || 0,
+    };
+
+    document.getElementById('hidden-name').value = selectedFood.name;
+    document.getElementById('hidden-calories').value = selectedFood.calories;
+    document.getElementById('hidden-protein').value = selectedFood.protein;
+    document.getElementById('hidden-carbs').value = selectedFood.carbs;
+    document.getElementById('hidden-fat').value = selectedFood.fat;
+    document.getElementById('hidden-fibre').value = selectedFood.fibre;
+    document.getElementById('hidden-sugar').value = selectedFood.sugar;
+
+    document.getElementById('log-food-name').textContent = selectedFood.name;
+    document.getElementById('log-panel').style.display = 'block';
+    document.getElementById('log-panel').scrollIntoView({ behavior: 'smooth' });
+    updatePreview();
+}
+
+function updatePreview() {
+    if (!selectedFood) return;
+    const qty = parseFloat(document.getElementById('quantity').value) || 100;
+    const factor = qty / 100;
+    document.getElementById('preview-qty').textContent = qty;
+    document.getElementById('prev-cal').textContent = Math.round(selectedFood.calories * factor);
+    document.getElementById('prev-protein').textContent = (selectedFood.protein * factor).toFixed(1) + 'g';
+    document.getElementById('prev-carbs').textContent = (selectedFood.carbs * factor).toFixed(1) + 'g';
+    document.getElementById('prev-fat').textContent = (selectedFood.fat * factor).toFixed(1) + 'g';
+}
+
+function clearSelection() {
+    selectedFood = null;
+    document.querySelectorAll('.result-card').forEach(c => c.classList.remove('selected'));
+    document.getElementById('log-panel').style.display = 'none';
+}
+
+document.getElementById('quantity').addEventListener('input', updatePreview);
+</script>
+{% endblock %}

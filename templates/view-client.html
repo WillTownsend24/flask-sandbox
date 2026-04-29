@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block title %}{{ subscriber.full_name }}'s Diary — NutriTrack{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ subscriber.full_name }}'s Diary</h1>
+        <p class="page-subtitle">{{ selected_date.strftime('%A, %d %B %Y') }}</p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('set_guidelines', subscriber_id=subscriber.id) }}" class="btn btn-outline">Set Guidelines</a>
+        <a href="{{ url_for('professional_home') }}" class="btn btn-outline btn-sm">← Back</a>
+    </div>
+</div>
+
+<!-- Health stats strip -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon">⚖️</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ subscriber.weight_kg ~ ' kg' if subscriber.weight_kg else '—' }}</div>
+            <div class="stat-label">Weight</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">📏</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ subscriber.height_cm ~ ' cm' if subscriber.height_cm else '—' }}</div>
+            <div class="stat-label">Height</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">❤️</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ subscriber.blood_pressure or '—' }}</div>
+            <div class="stat-label">Blood Pressure</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">🎯</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ subscriber.goal.replace('_',' ').title() if subscriber.goal else '—' }}</div>
+            <div class="stat-label">Goal</div>
+        </div>
+    </div>
+</div>
+
+<!-- 7-day chart -->
+<div class="card section-gap">
+    <h2 class="card-title">7-Day Calorie Overview</h2>
+    <div class="chart-wrap">
+        <canvas id="clientCalorieChart"></canvas>
+    </div>
+</div>
+
+<!-- Date navigator -->
+<div class="date-nav card section-gap">
+    <a href="{{ url_for('view_client', subscriber_id=subscriber.id, date=(selected_date - selected_date.__class__.resolution).isoformat()) }}" class="btn btn-outline btn-sm">← Previous</a>
+    <input type="date" id="date-picker" value="{{ selected_date.isoformat() }}" class="date-input"
+           onchange="window.location.href='{{ url_for('view_client', subscriber_id=subscriber.id) }}?date=' + this.value">
+    <a href="{{ url_for('view_client', subscriber_id=subscriber.id, date=(selected_date + selected_date.__class__.resolution).isoformat()) }}" class="btn btn-outline btn-sm">Next →</a>
+</div>
+
+<!-- Today's totals vs guidelines -->
+<div class="stats-grid section-gap">
+    <div class="stat-card {% if guideline and guideline.daily_calories and totals.calories > guideline.daily_calories %}stat-card--warn{% endif %}">
+        <div class="stat-icon">🔥</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ totals.calories | int }}</div>
+            <div class="stat-label">kcal</div>
+            {% if guideline and guideline.daily_calories %}<div class="stat-target">/ {{ guideline.daily_calories | int }} target</div>{% endif %}
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">💪</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ totals.protein }}g</div>
+            <div class="stat-label">Protein</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">🌾</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ totals.carbs }}g</div>
+            <div class="stat-label">Carbs</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">🥑</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ totals.fat }}g</div>
+            <div class="stat-label">Fat</div>
+        </div>
+    </div>
+</div>
+
+<!-- Meals -->
+{% for meal_type, entries in meals.items() %}
+<div class="card section-gap">
+    <h2 class="card-title meal-title meal-title--{{ meal_type }}">
+        {% if meal_type == 'breakfast' %}🌅{% elif meal_type == 'lunch' %}☀️{% elif meal_type == 'dinner' %}🌙{% else %}🍎{% endif %}
+        {{ meal_type | title }}
+    </h2>
+    {% if entries %}
+    <table class="diary-table">
+        <thead>
+            <tr><th>Food</th><th>Amount</th><th>Calories</th><th>Protein</th><th>Carbs</th><th>Fat</th></tr>
+        </thead>
+        <tbody>
+            {% for entry in entries %}
+            <tr>
+                <td>{{ entry.food_name }}</td>
+                <td>{{ entry.quantity_g }}g</td>
+                <td>{{ ((entry.calories or 0) * entry.quantity_g / 100) | round | int }} kcal</td>
+                <td>{{ ((entry.protein_g or 0) * entry.quantity_g / 100) | round(1) }}g</td>
+                <td>{{ ((entry.carbs_g or 0) * entry.quantity_g / 100) | round(1) }}g</td>
+                <td>{{ ((entry.fat_g or 0) * entry.quantity_g / 100) | round(1) }}g</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty-meal">Nothing logged for {{ meal_type }}.</p>
+    {% endif %}
+</div>
+{% endfor %}
+
+<!-- Professional comment box -->
+<div class="card section-gap">
+    <h2 class="card-title">Leave a Comment on This Day</h2>
+    <form method="POST" action="{{ url_for('comment_on_day', subscriber_id=subscriber.id) }}">
+        <input type="hidden" name="comment_date" value="{{ selected_date.isoformat() }}">
+        <div class="form-group">
+            <textarea name="comment" rows="4" placeholder="Add feedback, encouragement, or advice for {{ subscriber.full_name }}..."
+                      class="full-width-textarea" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Send Comment & Notify</button>
+    </form>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const labels = {{ chart_labels | safe }};
+const calories = {{ chart_calories | safe }};
+const calorieTarget = {{ calorie_target if calorie_target else 'null' }};
+
+const ctx = document.getElementById('clientCalorieChart').getContext('2d');
+const datasets = [{
+    label: 'Calories (kcal)',
+    data: calories,
+    backgroundColor: calories.map(c => calorieTarget && c > calorieTarget ? 'rgba(255,99,99,0.7)' : 'rgba(94,196,139,0.7)'),
+    borderColor: calories.map(c => calorieTarget && c > calorieTarget ? '#ff6363' : '#5ec48b'),
+    borderWidth: 2,
+    borderRadius: 6,
+}];
+if (calorieTarget) {
+    datasets.push({
+        label: 'Daily Target',
+        data: Array(labels.length).fill(calorieTarget),
+        type: 'line',
+        borderColor: '#f59e0b',
+        borderDash: [6,4],
+        borderWidth: 2,
+        pointRadius: 0,
+        fill: false,
+    });
+}
+new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: true } },
+        scales: {
+            y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
+            x: { grid: { display: false } }
+        }
+    }
+});
+</script>
+{% endblock %}

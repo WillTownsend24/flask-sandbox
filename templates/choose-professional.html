@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Choose Your Professional — NutriTrack{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Choose a Health Professional</h1>
+        <p class="page-subtitle">Select a professional to guide your nutrition journey</p>
+    </div>
+</div>
+
+{% if user.professional_id %}
+<div class="info-banner">
+    <span>ℹ️</span>
+    <span>You already have a health professional. Selecting a new one will replace them.</span>
+</div>
+{% endif %}
+
+<div class="professionals-grid section-gap">
+    {% if professionals %}
+        {% for prof in professionals %}
+        <div class="pro-card">
+            <div class="pro-avatar">{{ prof.full_name[0] }}</div>
+            <div class="pro-info">
+                <h3>{{ prof.full_name }}</h3>
+                {% if prof.specialisation %}
+                    <div class="pro-tags">
+                        {% for spec in prof.specialisation.split(',') %}
+                            <span class="tag">{{ spec.strip() }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                {% if prof.bio %}<p class="pro-bio">{{ prof.bio }}</p>{% endif %}
+            </div>
+            <form method="POST">
+                <input type="hidden" name="professional_id" value="{{ prof.id }}">
+                <button type="submit" class="btn btn-primary btn-full
+                    {% if user.professional_id == prof.id %}btn-selected{% endif %}">
+                    {% if user.professional_id == prof.id %}✓ Current Professional{% else %}Select{% endif %}
+                </button>
+            </form>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <p>No health professionals registered yet.</p>
+        </div>
+    {% endif %}
+</div>
+
+{% endblock %}

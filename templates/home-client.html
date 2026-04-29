@@ -1,23 +1,226 @@
-{% extends 'client.html' %}
+{% extends "base.html" %}
+{% block title %}Dashboard — NutriTrack{% endblock %}
+{% block content %}
 
-{% block head %}
-<title> Client home page</title>
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Good {% if today.hour < 12 %}morning{% elif today.hour < 18 %}afternoon{% else %}evening{% endif %}, {{ user.full_name.split()[0] }} 👋</h1>
+        <p class="page-subtitle">{{ today.strftime('%A, %d %B %Y') }}</p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('log_food') }}" class="btn btn-primary">+ Log Food</a>
+        <a href="{{ url_for('update_stats') }}" class="btn btn-outline">Update Stats</a>
+    </div>
+</div>
+
+{% if professional %}
+<div class="info-banner">
+    <span>👨‍⚕️</span>
+    <span>Your health professional: <strong>{{ professional.full_name }}</strong>
+    {% if professional.specialisation %} · {{ professional.specialisation }}{% endif %}</span>
+</div>
+{% else %}
+<div class="info-banner info-banner--warning">
+    <span>⚠️</span>
+    <span>You haven't chosen a health professional yet.
+    <a href="{{ url_for('choose_professional') }}">Find one now →</a></span>
+</div>
+{% endif %}
+
+<!-- Stat cards -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon">🔥</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ totals.calories | int }}</div>
+            <div class="stat-label">kcal today</div>
+            {% if guideline and guideline.daily_calories %}
+                <div class="stat-target">/ {{ guideline.daily_calories | int }} target</div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">💪</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ totals.protein }}g</div>
+            <div class="stat-label">Protein</div>
+            {% if guideline and guideline.daily_protein_g %}
+                <div class="stat-target">/ {{ guideline.daily_protein_g | int }}g target</div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">🌾</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ totals.carbs }}g</div>
+            <div class="stat-label">Carbs</div>
+            {% if guideline and guideline.daily_carbs_g %}
+                <div class="stat-target">/ {{ guideline.daily_carbs_g | int }}g target</div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">🥑</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ totals.fat }}g</div>
+            <div class="stat-label">Fat</div>
+            {% if guideline and guideline.daily_fat_g %}
+                <div class="stat-target">/ {{ guideline.daily_fat_g | int }}g target</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Progress bars vs guidelines -->
+{% if guideline %}
+<div class="card section-gap">
+    <h2 class="card-title">Today's Progress</h2>
+    <div class="progress-list">
+        {% set nutrients = [
+            ('Calories', totals.calories, guideline.daily_calories, 'kcal'),
+            ('Protein', totals.protein, guideline.daily_protein_g, 'g'),
+            ('Carbs', totals.carbs, guideline.daily_carbs_g, 'g'),
+            ('Fat', totals.fat, guideline.daily_fat_g, 'g'),
+            ('Fibre', totals.fibre, guideline.daily_fibre_g, 'g'),
+        ] %}
+        {% for label, value, target, unit in nutrients %}
+            {% if target %}
+                {% set pct = [((value / target) * 100) | round | int, 100] | min %}
+                {% set over = value > target %}
+                <div class="progress-row">
+                    <span class="progress-label">{{ label }}</span>
+                    <div class="progress-bar-wrap">
+                        <div class="progress-bar {% if over %}progress-bar--over{% endif %}" style="width: {{ pct }}%"></div>
+                    </div>
+                    <span class="progress-values {% if over %}text-warning{% endif %}">
+                        {{ value }}{{ unit }} / {{ target | int }}{{ unit }}
+                        {% if over %} ⚠️{% endif %}
+                    </span>
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+    {% if guideline.notes %}
+        <div class="guideline-note">
+            <strong>📝 Professional note:</strong> {{ guideline.notes }}
+        </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- 7-day calorie chart -->
+<div class="card section-gap">
+    <h2 class="card-title">7-Day Calorie History</h2>
+    <div class="chart-wrap">
+        <canvas id="calorieChart"></canvas>
+    </div>
+</div>
+
+<!-- Today's diary preview -->
+<div class="card section-gap">
+    <div class="card-header-row">
+        <h2 class="card-title">Today's Food Log</h2>
+        <a href="{{ url_for('food_diary') }}" class="btn btn-sm btn-outline">View Full Diary</a>
+    </div>
+    {% if today_entries %}
+        <div class="entry-list">
+            {% for entry in today_entries %}
+            <div class="entry-item">
+                <div class="entry-meta">
+                    <span class="meal-badge meal-badge--{{ entry.meal_type }}">{{ entry.meal_type | title }}</span>
+                    <span class="entry-name">{{ entry.food_name }}</span>
+                </div>
+                <div class="entry-nutrition">
+                    <span>{{ entry.quantity_g }}g</span>
+                    <span class="entry-cals">{{ ((entry.calories or 0) * entry.quantity_g / 100) | round | int }} kcal</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <p>Nothing logged today yet.</p>
+            <a href="{{ url_for('log_food') }}" class="btn btn-primary btn-sm">Log your first meal</a>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Health stats -->
+<div class="card section-gap">
+    <div class="card-header-row">
+        <h2 class="card-title">Your Health Stats</h2>
+        <a href="{{ url_for('update_stats') }}" class="btn btn-sm btn-outline">Update</a>
+    </div>
+    <div class="health-stats-grid">
+        <div class="health-stat">
+            <span class="health-icon">⚖️</span>
+            <span class="health-value">{{ user.weight_kg ~ ' kg' if user.weight_kg else '—' }}</span>
+            <span class="health-label">Weight</span>
+        </div>
+        <div class="health-stat">
+            <span class="health-icon">📏</span>
+            <span class="health-value">{{ user.height_cm ~ ' cm' if user.height_cm else '—' }}</span>
+            <span class="health-label">Height</span>
+        </div>
+        <div class="health-stat">
+            <span class="health-icon">❤️</span>
+            <span class="health-value">{{ user.blood_pressure or '—' }}</span>
+            <span class="health-label">Blood Pressure</span>
+        </div>
+        <div class="health-stat">
+            <span class="health-icon">🎯</span>
+            <span class="health-value">{{ user.goal.replace('_', ' ').title() if user.goal else '—' }}</span>
+            <span class="health-label">Goal</span>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
-{% block content %}
-<form action="", method="">
-    <a href="/login-or-create">login/create</a>
-</form>
-<form action="", method="">
-    <a href="/speak-to-professional">speak to professional</a>
-</form>
-<form action="", method="">
-    <a href="/food-diary">Food Diary</a>
-</form>
-<form action="", method="">
-    <a href="/search-for-recipe">Recipes</a>
-</form>
-<form action="", method="">
-    <a href="/home-professional">Home page for professionals for testing purposes</a>
-</form>
+{% block scripts %}
+<script>
+const labels = {{ chart_labels | safe }};
+const calories = {{ chart_calories | safe }};
+{% if guideline and guideline.daily_calories %}
+const calorieTarget = {{ guideline.daily_calories }};
+{% else %}
+const calorieTarget = null;
+{% endif %}
+
+const ctx = document.getElementById('calorieChart').getContext('2d');
+const datasets = [{
+    label: 'Calories (kcal)',
+    data: calories,
+    backgroundColor: calories.map(c => calorieTarget && c > calorieTarget ? 'rgba(255,99,99,0.7)' : 'rgba(94,196,139,0.7)'),
+    borderColor: calories.map(c => calorieTarget && c > calorieTarget ? '#ff6363' : '#5ec48b'),
+    borderWidth: 2,
+    borderRadius: 6,
+}];
+
+if (calorieTarget) {
+    datasets.push({
+        label: 'Daily Target',
+        data: Array(labels.length).fill(calorieTarget),
+        type: 'line',
+        borderColor: '#f59e0b',
+        borderDash: [6, 4],
+        borderWidth: 2,
+        pointRadius: 0,
+        fill: false,
+    });
+}
+
+new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: true } },
+        scales: {
+            y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
+            x: { grid: { display: false } }
+        }
+    }
+});
+</script>
 {% endblock %}

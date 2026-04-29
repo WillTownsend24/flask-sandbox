@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Add Recipe — NutriTrack{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Add a Recipe</h1>
+        <p class="page-subtitle">Share a healthy meal with the community</p>
+    </div>
+</div>
+
+<div class="card">
+    <form method="POST" id="recipe-form" class="auth-form">
+
+        <div class="form-group">
+            <label for="title">Recipe Title *</label>
+            <input type="text" id="title" name="title" placeholder="e.g. Lemon Herb Chicken" required>
+        </div>
+
+        <div class="form-group">
+            <label for="description">Short Description</label>
+            <input type="text" id="description" name="description" placeholder="A brief description of the dish">
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="prep_time_mins">Prep Time (mins)</label>
+                <input type="number" id="prep_time_mins" name="prep_time_mins" min="0" max="300" placeholder="15">
+            </div>
+            <div class="form-group">
+                <label for="cook_time_mins">Cook Time (mins)</label>
+                <input type="number" id="cook_time_mins" name="cook_time_mins" min="0" max="480" placeholder="30">
+            </div>
+            <div class="form-group">
+                <label for="servings">Servings</label>
+                <input type="number" id="servings" name="servings" min="1" max="50" value="2">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="cost_estimate">Cost Estimate</label>
+                <input type="text" id="cost_estimate" name="cost_estimate" placeholder="e.g. £2–£4">
+            </div>
+            <div class="form-group">
+                <label for="calories_per_serving">Calories per Serving</label>
+                <input type="number" id="calories_per_serving" name="calories_per_serving" step="1" placeholder="e.g. 450">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="tags">Tags (comma-separated)</label>
+            <input type="text" id="tags" name="tags" placeholder="e.g. vegan, high-protein, quick, budget">
+        </div>
+
+        <!-- Dynamic ingredients -->
+        <div class="form-group">
+            <label>Ingredients *</label>
+            <div id="ingredients-list">
+                <div class="ingredient-row">
+                    <input type="text" name="ingredient_name[]" placeholder="Ingredient name" class="ing-name" required>
+                    <input type="text" name="ingredient_amount[]" placeholder="Amount (e.g. 200g)" class="ing-amount">
+                    <button type="button" class="btn-icon btn-danger" onclick="removeIngredient(this)">✕</button>
+                </div>
+            </div>
+            <button type="button" class="btn btn-outline btn-sm" onclick="addIngredient()" style="margin-top:0.5rem">+ Add Ingredient</button>
+        </div>
+
+        <div class="form-group">
+            <label for="instructions">Instructions *</label>
+            <textarea id="instructions" name="instructions" rows="8"
+                      placeholder="Step 1. Preheat oven to 200°C.&#10;Step 2. ..." required></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Publish Recipe</button>
+        <a href="{{ url_for('recipes') }}" class="btn btn-outline">Cancel</a>
+    </form>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function addIngredient() {
+    const list = document.getElementById('ingredients-list');
+    const row = document.createElement('div');
+    row.className = 'ingredient-row';
+    row.innerHTML = `
+        <input type="text" name="ingredient_name[]" placeholder="Ingredient name" class="ing-name">
+        <input type="text" name="ingredient_amount[]" placeholder="Amount (e.g. 200g)" class="ing-amount">
+        <button type="button" class="btn-icon btn-danger" onclick="removeIngredient(this)">✕</button>
+    `;
+    list.appendChild(row);
+}
+
+function removeIngredient(btn) {
+    const rows = document.querySelectorAll('.ingredient-row');
+    if (rows.length > 1) {
+        btn.parentElement.remove();
+    }
+}
+</script>
+{% endblock %}

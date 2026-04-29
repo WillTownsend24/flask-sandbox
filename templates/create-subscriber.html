@@ -1,36 +1,28 @@
 {% extends "base.html" %}
-{% block title %}Register as Professional — NutriTrack{% endblock %}
+{% block title %}Create Account — NutriTrack{% endblock %}
 {% block content %}
 
 <div class="auth-page">
     <div class="auth-card auth-card--wide">
         <div class="auth-brand">
             <h1>Nutri<span>Track</span></h1>
-            <p>Register as a Health Professional</p>
+            <p>Create your subscriber account</p>
         </div>
 
         <form method="POST" class="auth-form">
             <div class="form-row">
                 <div class="form-group">
                     <label for="full_name">Full Name</label>
-                    <input type="text" id="full_name" name="full_name" placeholder="Dr. Sarah Jones" required>
+                    <input type="text" id="full_name" name="full_name" placeholder="Jane Smith" required>
                 </div>
                 <div class="form-group">
                     <label for="username">Username</label>
-                    <input type="text" id="username" name="username" placeholder="dr_sarah" required>
+                    <input type="text" id="username" name="username" placeholder="janesmith" required>
                 </div>
             </div>
             <div class="form-group">
                 <label for="email">Email Address</label>
-                <input type="email" id="email" name="email" placeholder="sarah@clinic.com" required>
-            </div>
-            <div class="form-group">
-                <label for="specialisation">Specialisation(s)</label>
-                <input type="text" id="specialisation" name="specialisation" placeholder="e.g. Weight Loss, Diabetes, Sports Nutrition">
-            </div>
-            <div class="form-group">
-                <label for="bio">Professional Bio</label>
-                <textarea id="bio" name="bio" rows="3" placeholder="Tell subscribers about your background and approach..."></textarea>
+                <input type="email" id="email" name="email" placeholder="jane@email.com" required>
             </div>
             <div class="form-row">
                 <div class="form-group">
@@ -42,11 +34,20 @@
                     <input type="password" id="confirm_password" name="confirm_password" placeholder="Repeat password" required>
                 </div>
             </div>
-            <button type="submit" class="btn btn-primary btn-full">Register</button>
+            <div class="form-group">
+                <label for="goal">Your Goal</label>
+                <select id="goal" name="goal">
+                    <option value="maintain">Maintain Weight</option>
+                    <option value="lose_weight">Lose Weight</option>
+                    <option value="gain_weight">Gain Weight / Build Muscle</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary btn-full">Create Account</button>
         </form>
 
         <div class="auth-links">
             <p>Already have an account? <a href="{{ url_for('login') }}">Sign in</a></p>
+            <p>Are you a health professional? <a href="{{ url_for('create_professional') }}">Register here</a></p>
         </div>
     </div>
 </div>
