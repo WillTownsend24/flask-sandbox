@@ -480,7 +480,7 @@ def create_professional():
 def subscriber_home():
     """Subscriber dashboard showing today's diary summary and nutrition progress."""
     user = get_current_user()
-    today = date.today()
+    today = datetime.now()
     totals = get_daily_totals(user.id, today)
     today_entries = FoodEntry.query.filter_by(user_id=user.id, logged_date=today).order_by(FoodEntry.logged_at).all()
 
@@ -704,7 +704,7 @@ def professional_home():
     subscribers = User.query.filter_by(professional_id=user.id, role="subscriber").all()
 
     # For each subscriber, get today's nutrition summary
-    today = date.today()
+    today = datetime.now()
     subscriber_data = []
     for s in subscribers:
         totals = get_daily_totals(s.id, today)
@@ -772,7 +772,7 @@ def view_client(subscriber_id):
         NutritionalGuideline.created.desc()).first()
 
     # 7-day chart data for the subscriber
-    today = date.today()
+    today = datetime.now()
     chart_labels = []
     chart_calories = []
     calorie_target = guideline.daily_calories if guideline else None
