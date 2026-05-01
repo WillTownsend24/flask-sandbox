@@ -1,19 +1,19 @@
 {% extends "base.html" %}
-{% block title %}Professional Dashboard — NutriTrack{% endblock %}
+{% block title %}Dashboard — NutriTrack{% endblock %}
 {% block content %}
 
 <div class="page-header">
-    <div>
-        <h1 class="page-title">Welcome, {{ user.full_name }} 👨‍⚕️</h1>
+    <div class="header-copy">
+        <h1 class="page-title">Welcome, {{ user.full_name }}</h1>
         <p class="page-subtitle">
             {% if user.specialisation %}{{ user.specialisation }}{% endif %}
         </p>
     </div>
-    <a href="{{ url_for('find_clients') }}" class="btn btn-primary">Find Clients</a>
+    <a href="{{ url_for('find_clients') }}" class="btn btn-primary">Find clients</a>
 </div>
 
 <div class="card section-gap">
-    <h2 class="card-title">Your Clients ({{ subscriber_data | length }})</h2>
+    <h2 class="card-title">Your clients ({{ subscriber_data | length }})</h2>
 
     {% if subscriber_data %}
     <div class="client-list">
@@ -26,8 +26,12 @@
             <div class="client-info">
                 <div class="client-name">{{ s.full_name }}</div>
                 <div class="client-meta">
-                    {% if s.goal %}<span class="tag">{{ s.goal.replace('_',' ').title() }}</span>{% endif %}
-                    {% if s.weight_kg %}<span class="tag">{{ s.weight_kg }}kg</span>{% endif %}
+                    {% if s.goal %}
+                        <span class="tag">{{ s.goal.replace('_', ' ').title() }}</span>
+                    {% endif %}
+                    {% if s.weight_kg %}
+                        <span class="tag">{{ s.weight_kg }}kg</span>
+                    {% endif %}
                 </div>
             </div>
             <div class="client-today">
@@ -46,8 +50,8 @@
                 {% endif %}
             </div>
             <div class="client-actions">
-                <a href="{{ url_for('view_client', subscriber_id=s.id) }}" class="btn btn-outline btn-sm">View Diary</a>
-                <a href="{{ url_for('set_guidelines', subscriber_id=s.id) }}" class="btn btn-sm btn-primary">Guidelines</a>
+                <a href="{{ url_for('view_client', subscriber_id=s.id) }}" class="btn btn-outline btn-sm">View diary</a>
+                <a href="{{ url_for('set_guidelines', subscriber_id=s.id) }}" class="btn btn-primary btn-sm">Guidelines</a>
             </div>
         </div>
         {% endfor %}

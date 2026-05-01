@@ -6,43 +6,82 @@
     <div class="auth-card auth-card--wide">
         <div class="auth-brand">
             <h1>Nutri<span>Track</span></h1>
-            <p>Create your subscriber account</p>
+            <p>Create your account</p>
         </div>
 
         <form method="POST" class="auth-form">
             <div class="form-row">
                 <div class="form-group">
-                    <label for="full_name">Full Name</label>
-                    <input type="text" id="full_name" name="full_name" placeholder="Jane Smith" required>
+                    <label for="full_name">Full name</label>
+                    <input
+                        type="text"
+                        id="full_name"
+                        name="full_name"
+                        placeholder="Jane Smith"
+                        autocomplete="name"
+                        required
+                    >
                 </div>
                 <div class="form-group">
                     <label for="username">Username</label>
-                    <input type="text" id="username" name="username" placeholder="janesmith" required>
+                    <input
+                        type="text"
+                        id="username"
+                        name="username"
+                        placeholder="janesmith"
+                        autocomplete="username"
+                        required
+                    >
                 </div>
             </div>
+
             <div class="form-group">
-                <label for="email">Email Address</label>
-                <input type="email" id="email" name="email" placeholder="jane@email.com" required>
+                <label for="email">Email</label>
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    placeholder="jane@email.com"
+                    autocomplete="email"
+                    required
+                >
             </div>
+
             <div class="form-row">
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" name="password" placeholder="Min. 6 characters" required>
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        placeholder="Min. 6 characters"
+                        autocomplete="new-password"
+                        required
+                    >
                 </div>
                 <div class="form-group">
-                    <label for="confirm_password">Confirm Password</label>
-                    <input type="password" id="confirm_password" name="confirm_password" placeholder="Repeat password" required>
+                    <label for="confirm_password">Confirm password</label>
+                    <input
+                        type="password"
+                        id="confirm_password"
+                        name="confirm_password"
+                        placeholder="Repeat password"
+                        autocomplete="new-password"
+                        required
+                    >
                 </div>
             </div>
+
             <div class="form-group">
-                <label for="goal">Your Goal</label>
+                <label for="goal">Goal</label>
                 <select id="goal" name="goal">
-                    <option value="maintain">Maintain Weight</option>
-                    <option value="lose_weight">Lose Weight</option>
-                    <option value="gain_weight">Gain Weight / Build Muscle</option>
+                    <option value="maintain">Maintain weight</option>
+                    <option value="lose_weight">Lose weight</option>
+                    <option value="gain_weight">Gain weight / build muscle</option>
                 </select>
             </div>
-            <button type="submit" class="btn btn-primary btn-full">Create Account</button>
+
+            <button type="submit" class="btn btn-primary btn-full">Create account</button>
         </form>
 
         <div class="auth-links">

@@ -1,17 +1,16 @@
 {% extends "base.html" %}
-{% block title %}Choose Your Professional — NutriTrack{% endblock %}
+{% block title %}Choose Professional — NutriTrack{% endblock %}
 {% block content %}
 
 <div class="page-header">
-    <div>
-        <h1 class="page-title">Choose a Health Professional</h1>
-        <p class="page-subtitle">Select a professional to guide your nutrition journey</p>
+    <div class="header-copy">
+        <h1 class="page-title">Choose a health professional</h1>
+        <p class="page-subtitle">Select someone to guide your nutrition.</p>
     </div>
 </div>
 
 {% if user.professional_id %}
 <div class="info-banner">
-    <span>ℹ️</span>
     <span>You already have a health professional. Selecting a new one will replace them.</span>
 </div>
 {% endif %}
@@ -30,13 +29,14 @@
                         {% endfor %}
                     </div>
                 {% endif %}
-                {% if prof.bio %}<p class="pro-bio">{{ prof.bio }}</p>{% endif %}
+                {% if prof.bio %}
+                    <p class="pro-bio">{{ prof.bio }}</p>
+                {% endif %}
             </div>
             <form method="POST">
                 <input type="hidden" name="professional_id" value="{{ prof.id }}">
-                <button type="submit" class="btn btn-primary btn-full
-                    {% if user.professional_id == prof.id %}btn-selected{% endif %}">
-                    {% if user.professional_id == prof.id %}✓ Current Professional{% else %}Select{% endif %}
+                <button type="submit" class="btn btn-primary btn-full {% if user.professional_id == prof.id %}btn-selected{% endif %}">
+                    {% if user.professional_id == prof.id %}Current professional{% else %}Select{% endif %}
                 </button>
             </form>
         </div>

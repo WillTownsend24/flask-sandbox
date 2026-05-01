@@ -27,7 +27,7 @@
             <a href="{{ url_for('recipes') }}" class="nav-link">Recipes</a>
         {% endif %}
         <a href="{{ url_for('notifications') }}" class="nav-link notif-bell">
-            🔔
+            Notifications
             {% if unread_count > 0 %}
                 <span class="notif-badge">{{ unread_count }}</span>
             {% endif %}
@@ -48,6 +48,7 @@
         {% endif %}
     {% endwith %}
 
+    
     {% block content %}{% endblock %}
 </main>
 

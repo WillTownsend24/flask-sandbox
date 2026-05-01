@@ -3,14 +3,14 @@
 {% block content %}
 
 <div class="page-header">
-    <div>
-        <h1 class="page-title">Find Clients</h1>
-        <p class="page-subtitle">Accept subscribers who need a health professional</p>
+    <div class="header-copy">
+        <h1 class="page-title">Find clients</h1>
+        <p class="page-subtitle">Accept subscribers who need a professional.</p>
     </div>
 </div>
 
 <div class="card section-gap">
-    <h2 class="card-title">Subscribers Without a Professional ({{ unassigned | length }})</h2>
+    <h2 class="card-title">Unassigned subscribers ({{ unassigned | length }})</h2>
 
     {% if unassigned %}
     <div class="client-list">
@@ -21,11 +21,13 @@
                 <div class="client-name">{{ s.full_name }}</div>
                 <div class="client-meta">
                     <span class="tag">@{{ s.username }}</span>
-                    {% if s.goal %}<span class="tag">{{ s.goal.replace('_',' ').title() }}</span>{% endif %}
+                    {% if s.goal %}
+                        <span class="tag">{{ s.goal.replace('_', ' ').title() }}</span>
+                    {% endif %}
                 </div>
             </div>
             <form method="POST" action="{{ url_for('accept_client', subscriber_id=s.id) }}">
-                <button type="submit" class="btn btn-primary btn-sm">Accept Client</button>
+                <button type="submit" class="btn btn-primary btn-sm">Accept</button>
             </form>
         </div>
         {% endfor %}
@@ -36,7 +38,8 @@
 </div>
 
 <div class="card section-gap">
-    <h2 class="card-title">Your Current Clients ({{ my_subscribers | length }})</h2>
+    <h2 class="card-title">Your clients ({{ my_subscribers | length }})</h2>
+
     {% if my_subscribers %}
     <div class="client-list">
         {% for s in my_subscribers %}
@@ -46,7 +49,9 @@
                 <div class="client-name">{{ s.full_name }}</div>
                 <div class="client-meta">
                     <span class="tag">@{{ s.username }}</span>
-                    {% if s.goal %}<span class="tag">{{ s.goal.replace('_',' ').title() }}</span>{% endif %}
+                    {% if s.goal %}
+                        <span class="tag">{{ s.goal.replace('_', ' ').title() }}</span>
+                    {% endif %}
                 </div>
             </div>
             <a href="{{ url_for('view_client', subscriber_id=s.id) }}" class="btn btn-outline btn-sm">View</a>
@@ -54,7 +59,7 @@
         {% endfor %}
     </div>
     {% else %}
-        <p class="empty-state-text">You have not accepted any clients yet.</p>
+        <p class="empty-state-text">You haven't accepted any clients yet.</p>
     {% endif %}
 </div>
 
