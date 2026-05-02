@@ -20,7 +20,7 @@
             <a href="{{ url_for('food_diary') }}" class="nav-link">Diary</a>
             <a href="{{ url_for('log_food') }}" class="nav-link">Log Food</a>
             <a href="{{ url_for('recipes') }}" class="nav-link">Recipes</a>
-            <a href="{{ url_for('my_recipes') }}" class="nav-link">My Recipes</a>
+
         {% else %}
             <a href="{{ url_for('professional_home') }}" class="nav-link">Dashboard</a>
             <a href="{{ url_for('find_clients') }}" class="nav-link">Find Clients</a>
@@ -28,9 +28,7 @@
         {% endif %}
         <a href="{{ url_for('notifications') }}" class="nav-link notif-bell">
             Notifications
-            {% if unread_count > 0 %}
-                <span class="notif-badge">{{ unread_count }}</span>
-            {% endif %}
+            
         </a>
         <a href="{{ url_for('logout') }}" class="nav-link logout-link">Logout</a>
     </div>

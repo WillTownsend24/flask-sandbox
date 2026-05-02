@@ -1,10 +1,3 @@
-"""
-app.py - Main Flask application entry point.
-
-Handles all routing, authentication, and business logic for the
-NutriTrack health and nutrition web application.
-"""
-
 from flask import Flask, render_template, redirect, request, session, flash, url_for, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, date, timedelta
@@ -12,12 +5,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import requests
 import json
-
-# ---------------------------------------------------------------------------
-# App & DB setup
-# ---------------------------------------------------------------------------
+# import os  # might need
 
 app = Flask(__name__)
+# TODO: move this to env variable before going live, fine for now
 app.secret_key = "nutritrack_secret_key_2024"
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///nutritrack.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
@@ -25,55 +16,44 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
 
-# ---------------------------------------------------------------------------
-# Database Models
-# ---------------------------------------------------------------------------
+# Models -
 
 class User(db.Model):
-    """
-    Represents both subscribers and health professionals.
-    The `role` field distinguishes between the two ('subscriber' or 'professional').
-    """
+    #handles both subscribers and health professionals
+    #the field is either 'subscriber' or 'professional'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
     email = db.Column(db.String(150), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
-    role = db.Column(db.String(20), nullable=False, default="subscriber")  # 'subscriber' or 'professional'
+    role = db.Column(db.String(20), nullable=False, default="subscriber")
     full_name = db.Column(db.String(150), nullable=False)
-    # Professional-specific fields
-    specialisation = db.Column(db.String(200), nullable=True)  # e.g. "Weight Loss, Diabetes"
+    specialisation = db.Column(db.String(200), nullable=True)
     bio = db.Column(db.Text, nullable=True)
-    # Subscriber health stats
     weight_kg = db.Column(db.Float, nullable=True)
     height_cm = db.Column(db.Float, nullable=True)
-    blood_pressure = db.Column(db.String(20), nullable=True)  # e.g. "120/80"
-    goal = db.Column(db.String(50), nullable=True)  # 'lose_weight', 'gain_weight', 'maintain'
-    # Relationship to professional
+    blood_pressure = db.Column(db.String(20), nullable=True)  # format: "120/80"
+    goal = db.Column(db.String(50), nullable=True)  # lose_weight / gain_weight / maintain
     professional_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     created = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # Relationships
     food_entries = db.relationship("FoodEntry", backref="user", lazy=True, foreign_keys="FoodEntry.user_id")
     notifications = db.relationship("Notification", backref="recipient", lazy=True, foreign_keys="Notification.user_id")
-    saved_recipes = db.relationship("SavedRecipe", backref="user", lazy=True)
+
+
 
     def set_password(self, password):
-        """Hash and store the user's password."""
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
-        """Return True if the provided password matches the stored hash."""
         return check_password_hash(self.password_hash, password)
 
     def __repr__(self):
-        return f"<User {self.username} ({self.role})>"
+        return f"<User {self.username}>"
 
 
 class FoodEntry(db.Model):
-    """
-    A single food item logged by a subscriber in their food diary.
-    Stores nutrition data fetched from the Open Food Facts API.
-    """
+    #one row per food item logged by a subscriber
+    #nutrition values are per 100g, quantity_g scales them at render time
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     food_name = db.Column(db.String(200), nullable=False)
@@ -84,19 +64,17 @@ class FoodEntry(db.Model):
     fat_g = db.Column(db.Float, nullable=True)
     fibre_g = db.Column(db.Float, nullable=True)
     sugar_g = db.Column(db.Float, nullable=True)
-    meal_type = db.Column(db.String(20), nullable=False, default="lunch")  # breakfast/lunch/dinner/snack
+    meal_type = db.Column(db.String(20), nullable=False, default="lunch")
     logged_date = db.Column(db.Date, nullable=False, default=date.today)
     logged_at = db.Column(db.DateTime, default=datetime.utcnow)
     professional_comment = db.Column(db.Text, nullable=True)
 
     def __repr__(self):
-        return f"<FoodEntry {self.food_name} by user {self.user_id}>"
+        return f"<FoodEntry {self.food_name}>"
 
 
 class NutritionalGuideline(db.Model):
-    """
-    Daily nutritional targets set by a health professional for a specific subscriber.
-    """
+    """Daily targets set by a professional for one of their clients."""
     id = db.Column(db.Integer, primary_key=True)
     subscriber_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     professional_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
@@ -110,96 +88,72 @@ class NutritionalGuideline(db.Model):
     updated = db.Column(db.DateTime, onupdate=datetime.utcnow)
 
     def __repr__(self):
-        return f"<Guideline for subscriber {self.subscriber_id}>"
+        return f"<Guideline subscriber={self.subscriber_id}>"
 
 
 class Recipe(db.Model):
-    """
-    A recipe stored in the system, either seeded or user-submitted.
-    """
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=True)
-    ingredients = db.Column(db.Text, nullable=False)  # JSON string
+    ingredients = db.Column(db.Text, nullable=False)  # stored as JSON string
     instructions = db.Column(db.Text, nullable=False)
     cook_time_mins = db.Column(db.Integer, nullable=True)
     prep_time_mins = db.Column(db.Integer, nullable=True)
     servings = db.Column(db.Integer, nullable=True, default=2)
-    cost_estimate = db.Column(db.String(20), nullable=True)  # e.g. "£3–£5"
+    cost_estimate = db.Column(db.String(20), nullable=True)
     calories_per_serving = db.Column(db.Float, nullable=True)
     protein_per_serving = db.Column(db.Float, nullable=True)
     carbs_per_serving = db.Column(db.Float, nullable=True)
     fat_per_serving = db.Column(db.Float, nullable=True)
-    tags = db.Column(db.String(300), nullable=True)  # comma-separated e.g. "chicken,high-protein"
+    tags = db.Column(db.String(300), nullable=True)  # comma separated
     image_url = db.Column(db.String(500), nullable=True)
     created_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     created = db.Column(db.DateTime, default=datetime.utcnow)
 
     comments = db.relationship("RecipeComment", backref="recipe", lazy=True)
-    saves = db.relationship("SavedRecipe", backref="recipe", lazy=True)
 
     def average_rating(self):
-        """Calculate and return the average star rating for this recipe."""
         if not self.comments:
             return None
         rated = [c.rating for c in self.comments if c.rating is not None]
-        return round(sum(rated) / len(rated), 1) if rated else None
+        if not rated:
+            return None
+        return round(sum(rated) / len(rated), 1)
 
     def __repr__(self):
         return f"<Recipe {self.title}>"
 
 
 class RecipeComment(db.Model):
-    """
-    A comment (and optional rating) left by a user on a recipe.
-    """
     id = db.Column(db.Integer, primary_key=True)
     recipe_id = db.Column(db.Integer, db.ForeignKey("recipe.id"), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     comment = db.Column(db.Text, nullable=False)
-    rating = db.Column(db.Integer, nullable=True)  # 1–5
+    rating = db.Column(db.Integer, nullable=True)  # 1-5, optional
     created = db.Column(db.DateTime, default=datetime.utcnow)
+
 
     user = db.relationship("User", backref="recipe_comments")
 
     def __repr__(self):
-        return f"<RecipeComment by user {self.user_id} on recipe {self.recipe_id}>"
-
-
-class SavedRecipe(db.Model):
-    """
-    Tracks which recipes a subscriber has saved (tried / favourite / want to try).
-    """
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    recipe_id = db.Column(db.Integer, db.ForeignKey("recipe.id"), nullable=False)
-    status = db.Column(db.String(20), nullable=False, default="want_to_try")  # tried / favourite / want_to_try
-    saved_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    def __repr__(self):
-        return f"<SavedRecipe user={self.user_id} recipe={self.recipe_id} status={self.status}>"
+        return f"<RecipeComment by={self.user_id} recipe={self.recipe_id}>"
 
 
 class Notification(db.Model):
-    """
-    In-app notifications sent to users (e.g. professional comments on a food diary day).
-    """
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     message = db.Column(db.Text, nullable=False)
-    is_read = db.Column(db.Boolean, default=False)
     created = db.Column(db.DateTime, default=datetime.utcnow)
 
+
+
     def __repr__(self):
-        return f"<Notification for user {self.user_id}>"
+        return f"<Notification user={self.user_id}>"
 
 
-# ---------------------------------------------------------------------------
-# Auth helpers
-# ---------------------------------------------------------------------------
+# Auth decorators
 
 def login_required(f):
-    """Decorator: redirect to login if the user is not authenticated."""
     @wraps(f)
     def decorated(*args, **kwargs):
         if "user_id" not in session:
@@ -209,68 +163,23 @@ def login_required(f):
     return decorated
 
 
-def professional_required(f):
-    """Decorator: only allow health professionals to access the route."""
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if "user_id" not in session:
-            flash("Please log in.", "warning")
-            return redirect(url_for("login"))
-        if session.get("role") != "professional":
-            flash("Access restricted to health professionals.", "danger")
-            return redirect(url_for("subscriber_home"))
-        return f(*args, **kwargs)
-    return decorated
-
-
-def subscriber_required(f):
-    """Decorator: only allow subscribers to access the route."""
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if "user_id" not in session:
-            flash("Please log in.", "warning")
-            return redirect(url_for("login"))
-        if session.get("role") != "subscriber":
-            flash("Access restricted to subscribers.", "danger")
-            return redirect(url_for("professional_home"))
-        return f(*args, **kwargs)
-    return decorated
-
-
 def get_current_user():
-    """Return the currently logged-in User object, or None."""
     if "user_id" not in session:
         return None
     return User.query.get(session["user_id"])
 
 
-def unread_notification_count():
-    """Return the number of unread notifications for the current user."""
-    user = get_current_user()
-    if not user:
-        return 0
-    return Notification.query.filter_by(user_id=user.id, is_read=False).count()
-
-
-# Make notification count available in all templates
 @app.context_processor
 def inject_globals():
     return {
-        "unread_count": unread_notification_count(),
         "current_user": get_current_user()
     }
 
 
-# ---------------------------------------------------------------------------
-# Nutrition API helper (Open Food Facts)
-# ---------------------------------------------------------------------------
+# Open Food Facts helper 
+# note their API is a bit flaky sometimes, hence the short timeout + fallback
 
 def search_food_api(query):
-    """
-    Search Open Food Facts for a food item.
-    Returns a list of result dicts with nutrition per 100g.
-    Falls back to an empty list on any error.
-    """
     try:
         url = "https://world.openfoodfacts.org/cgi/search.pl"
         params = {
@@ -284,12 +193,15 @@ def search_food_api(query):
         resp = requests.get(url, params=params, timeout=5)
         resp.raise_for_status()
         data = resp.json()
+
         results = []
         for product in data.get("products", []):
             name = product.get("product_name", "").strip()
             if not name:
                 continue
+
             n = product.get("nutriments", {})
+            # some products have missing values, default to 0 and round
             results.append({
                 "name": name,
                 "brand": product.get("brands", ""),
@@ -301,40 +213,34 @@ def search_food_api(query):
                 "sugar": round(n.get("sugars_100g", 0) or 0, 1),
             })
         return results
+
     except Exception as e:
-        print(f"[API ERROR] search_food_api: {e}")
+        # don't crash the whole request just because the food API is down
+        print(f"[food api error] {e}")
         return []
 
 
-# ---------------------------------------------------------------------------
-# Nutrition calculation helper
-# ---------------------------------------------------------------------------
+# ---- Nutrition totals
 
 def get_daily_totals(user_id, target_date):
-    """
-    Return summed nutrition totals for a user on a given date.
-    Returns a dict of nutrient -> total value.
-    """
     entries = FoodEntry.query.filter_by(user_id=user_id, logged_date=target_date).all()
     totals = {"calories": 0, "protein": 0, "carbs": 0, "fat": 0, "fibre": 0, "sugar": 0}
+
     for e in entries:
         factor = e.quantity_g / 100.0
-        totals["calories"] += (e.calories or 0) * factor
         totals["protein"] += (e.protein_g or 0) * factor
         totals["carbs"] += (e.carbs_g or 0) * factor
         totals["fat"] += (e.fat_g or 0) * factor
         totals["fibre"] += (e.fibre_g or 0) * factor
         totals["sugar"] += (e.sugar_g or 0) * factor
+
     return {k: round(v, 1) for k, v in totals.items()}
 
 
-# ---------------------------------------------------------------------------
-# Auth routes
-# ---------------------------------------------------------------------------
+#  Routes 
 
 @app.route("/")
 def index():
-    """Redirect root to login page."""
     if "user_id" in session:
         if session.get("role") == "professional":
             return redirect(url_for("professional_home"))
@@ -344,7 +250,6 @@ def index():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    """Handle user login for both subscribers and professionals."""
     if "user_id" in session:
         return redirect(url_for("index"))
 
@@ -352,7 +257,6 @@ def login():
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
 
-        # Input validation
         if not username or not password:
             flash("Please enter both username and password.", "danger")
             return render_template("login.html")
@@ -375,7 +279,6 @@ def login():
 
 @app.route("/logout")
 def logout():
-    """Clear session and redirect to login."""
     session.clear()
     flash("You have been logged out.", "info")
     return redirect(url_for("login"))
@@ -383,7 +286,6 @@ def logout():
 
 @app.route("/create-subscriber", methods=["GET", "POST"])
 def create_subscriber():
-    """Register a new subscriber account."""
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         email = request.form.get("email", "").strip()
@@ -392,7 +294,6 @@ def create_subscriber():
         full_name = request.form.get("full_name", "").strip()
         goal = request.form.get("goal", "maintain")
 
-        # Validation
         if not all([username, email, password, full_name]):
             flash("All fields are required.", "danger")
             return render_template("create-subscriber.html")
@@ -409,17 +310,12 @@ def create_subscriber():
             flash("Email already registered.", "danger")
             return render_template("create-subscriber.html")
 
-        user = User(
-            username=username,
-            email=email,
-            full_name=full_name,
-            role="subscriber",
-            goal=goal
-        )
+        user = User(username=username, email=email, full_name=full_name, role="subscriber", goal=goal)
         user.set_password(password)
         db.session.add(user)
+
         db.session.commit()
-        flash("Account created! Please log in.", "success")
+        flash("Account created! Please log in.", "success")#gettingthere
         return redirect(url_for("login"))
 
     professionals = User.query.filter_by(role="professional").all()
@@ -428,13 +324,13 @@ def create_subscriber():
 
 @app.route("/create-professional", methods=["GET", "POST"])
 def create_professional():
-    """Register a new health professional account."""
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         email = request.form.get("email", "").strip()
         password = request.form.get("password", "")
         confirm = request.form.get("confirm_password", "")
         full_name = request.form.get("full_name", "").strip()
+
         specialisation = request.form.get("specialisation", "").strip()
         bio = request.form.get("bio", "").strip()
 
@@ -455,46 +351,41 @@ def create_professional():
             return render_template("create-professional.html")
 
         user = User(
-            username=username,
-            email=email,
-            full_name=full_name,
-            role="professional",
-            specialisation=specialisation,
-            bio=bio
+            username=username, email=email, full_name=full_name,
+            role="professional", specialisation=specialisation, bio=bio
         )
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
+
         flash("Professional account created! Please log in.", "success")
         return redirect(url_for("login"))
 
     return render_template("create-professional.html")
 
 
-# ---------------------------------------------------------------------------
-# Subscriber routes
-# ---------------------------------------------------------------------------
+# Subscriber views
 
 @app.route("/home")
-@subscriber_required
+@login_required
 def subscriber_home():
-    """Subscriber dashboard showing today's diary summary and nutrition progress."""
+    if session.get("role") != "subscriber":
+        return redirect(url_for("professional_home"))
     user = get_current_user()
     today = datetime.now()
+
     totals = get_daily_totals(user.id, today)
     today_entries = FoodEntry.query.filter_by(user_id=user.id, logged_date=today).order_by(FoodEntry.logged_at).all()
+    guideline = NutritionalGuideline.query.filter_by(subscriber_id=user.id).order_by(NutritionalGuideline.created.desc()).first()
 
-    guideline = NutritionalGuideline.query.filter_by(subscriber_id=user.id).order_by(
-        NutritionalGuideline.created.desc()).first()
 
-    # Build 7-day calorie history for the chart
+    # build 7-day calorie data for the little chart on the dashboard
     chart_labels = []
     chart_calories = []
     for i in range(6, -1, -1):
         d = today - timedelta(days=i)
         chart_labels.append(d.strftime("%a %d"))
-        day_total = get_daily_totals(user.id, d)
-        chart_calories.append(day_total["calories"])
+        chart_calories.append(get_daily_totals(user.id, d)["calories"])
 
     professional = User.query.get(user.professional_id) if user.professional_id else None
 
@@ -508,13 +399,15 @@ def subscriber_home():
         chart_labels=json.dumps(chart_labels),
         chart_calories=json.dumps(chart_calories),
         professional=professional
+        
     )
 
 
-@app.route("/food-diary", methods=["GET"])
-@subscriber_required
+@app.route("/food-diary")
+@login_required
 def food_diary():
-    """Show the subscriber's food diary for a selected date."""
+    if session.get("role") != "subscriber":
+        return redirect(url_for("professional_home"))
     user = get_current_user()
     date_str = request.args.get("date", date.today().isoformat())
 
@@ -523,14 +416,17 @@ def food_diary():
     except ValueError:
         selected_date = date.today()
 
-    entries = FoodEntry.query.filter_by(user_id=user.id, logged_date=selected_date).order_by(
-        FoodEntry.meal_type, FoodEntry.logged_at).all()
-
+    entries = FoodEntry.query.filter_by(
+        user_id=user.id,
+        logged_date=selected_date
+    ).order_by(FoodEntry.meal_type, FoodEntry.logged_at).all() 
+       
     totals = get_daily_totals(user.id, selected_date)
-    guideline = NutritionalGuideline.query.filter_by(subscriber_id=user.id).order_by(
-        NutritionalGuideline.created.desc()).first()
+    
+    guideline = NutritionalGuideline.query.filter_by(
+        subscriber_id=user.id
+).order_by(NutritionalGuideline.created.desc()).first()
 
-    # Group entries by meal type
     meals = {"breakfast": [], "lunch": [], "dinner": [], "snack": []}
     for e in entries:
         meals.get(e.meal_type, meals["snack"]).append(e)
@@ -546,9 +442,10 @@ def food_diary():
 
 
 @app.route("/log-food", methods=["GET", "POST"])
-@subscriber_required
+@login_required
 def log_food():
-    """Search for a food item and log it to today's diary."""
+    if session.get("role") != "subscriber":
+        return redirect(url_for("professional_home"))
     user = get_current_user()
     results = []
     query = ""
@@ -566,16 +463,15 @@ def log_food():
                     flash("No results found. Try a different search term.", "info")
 
         elif action == "log":
-            # Log the selected food item
             food_name = request.form.get("food_name", "").strip()
             quantity = request.form.get("quantity", "100")
             meal_type = request.form.get("meal_type", "lunch")
             log_date_str = request.form.get("log_date", date.today().isoformat())
 
-            # Validate inputs
             if not food_name:
                 flash("Food name is required.", "danger")
                 return redirect(url_for("log_food"))
+
             try:
                 quantity = float(quantity)
                 if quantity <= 0:
@@ -583,6 +479,7 @@ def log_food():
             except ValueError:
                 flash("Please enter a valid quantity in grams.", "danger")
                 return redirect(url_for("log_food"))
+
             try:
                 log_date = date.fromisoformat(log_date_str)
             except ValueError:
@@ -610,12 +507,14 @@ def log_food():
 
 
 @app.route("/delete-entry/<int:entry_id>", methods=["POST"])
-@subscriber_required
+@login_required
 def delete_entry(entry_id):
-    """Delete a food diary entry belonging to the current subscriber."""
+    if session.get("role") != "subscriber":
+        return redirect(url_for("professional_home"))
     user = get_current_user()
     entry = FoodEntry.query.get_or_404(entry_id)
 
+    # make sure people can't delete each other's entries
     if entry.user_id != user.id:
         flash("You cannot delete someone else's entry.", "danger")
         return redirect(url_for("food_diary"))
@@ -628,16 +527,19 @@ def delete_entry(entry_id):
 
 
 @app.route("/update-stats", methods=["GET", "POST"])
-@subscriber_required
+@login_required
 def update_stats():
-    """Allow a subscriber to update their health stats (weight, height, BP)."""
+    if session.get("role") != "subscriber":
+        return redirect(url_for("professional_home"))
     user = get_current_user()
+
     if request.method == "POST":
         try:
             weight = request.form.get("weight_kg", "").strip()
             height = request.form.get("height_cm", "").strip()
             bp = request.form.get("blood_pressure", "").strip()
 
+            # only update fields that were actually filled in
             if weight:
                 user.weight_kg = float(weight)
             if height:
@@ -649,15 +551,19 @@ def update_stats():
             flash("Health stats updated.", "success")
         except ValueError:
             flash("Please enter valid numeric values.", "danger")
+
         return redirect(url_for("subscriber_home"))
+
     return render_template("update-stats.html", user=user)
 
 
 @app.route("/choose-professional", methods=["GET", "POST"])
-@subscriber_required
+@login_required
 def choose_professional():
-    """Allow a subscriber to select or change their health professional."""
+    if session.get("role") != "subscriber":
+        return redirect(url_for("professional_home"))
     user = get_current_user()
+
     if request.method == "POST":
         prof_id = request.form.get("professional_id")
         if not prof_id:
@@ -679,46 +585,38 @@ def choose_professional():
 @app.route("/notifications")
 @login_required
 def notifications():
-    """Show all notifications for the current user and mark them as read."""
     user = get_current_user()
-    all_notifications = Notification.query.filter_by(user_id=user.id).order_by(
-        Notification.created.desc()).all()
-
-    # Mark all as read
-    for n in all_notifications:
-        n.is_read = True
-    db.session.commit()
-
+    all_notifications = Notification.query.filter_by(user_id=user.id).order_by(Notification.created.desc()).all()
     return render_template("notifications.html", user=user, notifications=all_notifications)
 
 
-# ---------------------------------------------------------------------------
-# Professional routes
-# ---------------------------------------------------------------------------
+# ---- Professional views ----
 
 @app.route("/home-professional")
-@professional_required
+@login_required
 def professional_home():
-    """Professional dashboard showing their assigned subscribers."""
+    if session.get("role") != "professional":
+        return redirect(url_for("subscriber_home"))
     user = get_current_user()
     subscribers = User.query.filter_by(professional_id=user.id, role="subscriber").all()
-
-    # For each subscriber, get today's nutrition summary
     today = datetime.now()
+
+    # bundle each subscriber with their daily totals + guideline for the dashboard
     subscriber_data = []
     for s in subscribers:
         totals = get_daily_totals(s.id, today)
-        guideline = NutritionalGuideline.query.filter_by(subscriber_id=s.id).order_by(
-            NutritionalGuideline.created.desc()).first()
+
+        guideline = NutritionalGuideline.query.filter_by(subscriber_id=s.id).order_by(NutritionalGuideline.created.desc()).first()
         subscriber_data.append({"user": s, "totals": totals, "guideline": guideline})
 
     return render_template("home-professional.html", user=user, subscriber_data=subscriber_data)
 
 
 @app.route("/find-clients")
-@professional_required
+@login_required
 def find_clients():
-    """Show all subscribers not yet assigned to any professional."""
+    if session.get("role") != "professional":
+        return redirect(url_for("subscriber_home"))
     user = get_current_user()
     unassigned = User.query.filter_by(role="subscriber", professional_id=None).all()
     my_subscribers = User.query.filter_by(role="subscriber", professional_id=user.id).all()
@@ -726,9 +624,10 @@ def find_clients():
 
 
 @app.route("/accept-client/<int:subscriber_id>", methods=["POST"])
-@professional_required
+@login_required
 def accept_client(subscriber_id):
-    """Assign a subscriber to the current professional."""
+    if session.get("role") != "professional":
+        return redirect(url_for("subscriber_home"))
     user = get_current_user()
     subscriber = User.query.get_or_404(subscriber_id)
 
@@ -737,21 +636,22 @@ def accept_client(subscriber_id):
         return redirect(url_for("find_clients"))
 
     subscriber.professional_id = user.id
-    # Send a notification to the subscriber
     notif = Notification(
         user_id=subscriber.id,
         message=f"You have been accepted by {user.full_name} as your health professional."
     )
     db.session.add(notif)
     db.session.commit()
+
     flash(f"{subscriber.full_name} is now your client.", "success")
     return redirect(url_for("find_clients"))
 
 
 @app.route("/view-client/<int:subscriber_id>")
-@professional_required
+@login_required
 def view_client(subscriber_id):
-    """View a subscriber's food diary and health data as a professional."""
+    if session.get("role") != "professional":
+        return redirect(url_for("subscriber_home"))
     user = get_current_user()
     subscriber = User.query.get_or_404(subscriber_id)
 
@@ -765,22 +665,26 @@ def view_client(subscriber_id):
     except ValueError:
         selected_date = date.today()
 
-    entries = FoodEntry.query.filter_by(user_id=subscriber.id, logged_date=selected_date).order_by(
-        FoodEntry.meal_type).all()
-    totals = get_daily_totals(subscriber.id, selected_date)
-    guideline = NutritionalGuideline.query.filter_by(subscriber_id=subscriber.id).order_by(
-        NutritionalGuideline.created.desc()).first()
+    entries = FoodEntry.query.filter_by(
+        user_id=subscriber.id,
+        logged_date=selected_date
+    ).order_by(FoodEntry.meal_type).all()
 
-    # 7-day chart data for the subscriber
+    totals = get_daily_totals(subscriber.id, selected_date)
+
+    guideline = NutritionalGuideline.query.filter_by(
+        subscriber_id=subscriber.id
+    ).order_by(NutritionalGuideline.created.desc()).first()
+
     today = datetime.now()
     chart_labels = []
     chart_calories = []
     calorie_target = guideline.daily_calories if guideline else None
+
     for i in range(6, -1, -1):
         d = today - timedelta(days=i)
         chart_labels.append(d.strftime("%a %d"))
-        day_total = get_daily_totals(subscriber.id, d)
-        chart_calories.append(day_total["calories"])
+        chart_calories.append(get_daily_totals(subscriber.id, d)["calories"])
 
     meals = {"breakfast": [], "lunch": [], "dinner": [], "snack": []}
     for e in entries:
@@ -801,9 +705,10 @@ def view_client(subscriber_id):
 
 
 @app.route("/set-guidelines/<int:subscriber_id>", methods=["GET", "POST"])
-@professional_required
+@login_required
 def set_guidelines(subscriber_id):
-    """Set or update nutritional guidelines for a subscriber."""
+    if session.get("role") != "professional":
+        return redirect(url_for("subscriber_home"))
     user = get_current_user()
     subscriber = User.query.get_or_404(subscriber_id)
 
@@ -811,11 +716,11 @@ def set_guidelines(subscriber_id):
         flash("This subscriber is not your client.", "danger")
         return redirect(url_for("professional_home"))
 
-    existing = NutritionalGuideline.query.filter_by(subscriber_id=subscriber.id).order_by(
-        NutritionalGuideline.created.desc()).first()
+    existing = NutritionalGuideline.query.filter_by(subscriber_id=subscriber.id).order_by(NutritionalGuideline.created.desc()).first()
 
     if request.method == "POST":
         try:
+            # using "or None" trick so empty strings dont become 0.0 in the db
             guideline = NutritionalGuideline(
                 subscriber_id=subscriber.id,
                 professional_id=user.id,
@@ -827,15 +732,14 @@ def set_guidelines(subscriber_id):
                 notes=request.form.get("notes", "").strip()
             )
             db.session.add(guideline)
-            # Notify subscriber
-            notif = Notification(
+            db.session.add(Notification(
                 user_id=subscriber.id,
                 message=f"{user.full_name} has updated your nutritional guidelines."
-            )
-            db.session.add(notif)
+            ))
             db.session.commit()
             flash(f"Guidelines updated for {subscriber.full_name}.", "success")
             return redirect(url_for("view_client", subscriber_id=subscriber.id))
+
         except ValueError:
             flash("Please enter valid numeric values for guidelines.", "danger")
 
@@ -843,9 +747,10 @@ def set_guidelines(subscriber_id):
 
 
 @app.route("/comment-on-day/<int:subscriber_id>", methods=["POST"])
-@professional_required
+@login_required
 def comment_on_day(subscriber_id):
-    """Professional comments on a subscriber's food diary day."""
+    if session.get("role") != "professional":
+        return redirect(url_for("subscriber_home"))
     user = get_current_user()
     subscriber = User.query.get_or_404(subscriber_id)
 
@@ -860,91 +765,73 @@ def comment_on_day(subscriber_id):
         flash("Comment cannot be empty.", "warning")
         return redirect(url_for("view_client", subscriber_id=subscriber_id, date=comment_date_str))
 
-    # Attach comment to each entry on that day
     try:
         comment_date = date.fromisoformat(comment_date_str)
     except ValueError:
         comment_date = date.today()
 
+    # attach comment to every entry for that day
+    # TODO: might be nicer to have a separate DayComment model rather than
+    #       stamping every individual entry - revisit if this causes issues
     entries = FoodEntry.query.filter_by(user_id=subscriber.id, logged_date=comment_date).all()
     for entry in entries:
         entry.professional_comment = comment_text
 
-    # Notify subscriber
-    notif = Notification(
+    preview = comment_text[:80] + ("..." if len(comment_text) > 80 else "")
+    db.session.add(Notification(
         user_id=subscriber.id,
-        message=f"{user.full_name} commented on your food diary for {comment_date.strftime('%d %B %Y')}: \"{comment_text[:80]}{'...' if len(comment_text) > 80 else ''}\""
-    )
-    db.session.add(notif)
+        message=f"{user.full_name} commented on your food diary for {comment_date.strftime('%d %B %Y')}: \"{preview}\""
+    ))
     db.session.commit()
+
     flash("Comment sent and subscriber notified.", "success")
     return redirect(url_for("view_client", subscriber_id=subscriber_id, date=comment_date_str))
 
 
-# ---------------------------------------------------------------------------
-# Recipe routes
-# ---------------------------------------------------------------------------
+# ---- Recipe routes ----
 
 @app.route("/recipes")
 @login_required
 def recipes():
-    """Browse all recipes with optional ingredient search."""
     user = get_current_user()
     search = request.args.get("search", "").strip()
     tag = request.args.get("tag", "").strip()
 
-    query = Recipe.query
-
+    q = Recipe.query
     if search:
-        query = query.filter(
-            db.or_(
-                Recipe.title.ilike(f"%{search}%"),
-                Recipe.ingredients.ilike(f"%{search}%"),
-                Recipe.tags.ilike(f"%{search}%")
-            )
-        )
+        q = q.filter(db.or_(
+            Recipe.title.ilike(f"%{search}%"),
+            Recipe.ingredients.ilike(f"%{search}%"),
+            Recipe.tags.ilike(f"%{search}%")
+        ))
     if tag:
-        query = query.filter(Recipe.tags.ilike(f"%{tag}%"))
+        q = q.filter(Recipe.tags.ilike(f"%{tag}%"))
 
-    all_recipes = query.order_by(Recipe.created.desc()).all()
+    all_recipes = q.order_by(Recipe.created.desc()).all()
 
-    # Get user's saved recipe IDs
-    saved = {}
-    if user.role == "subscriber":
-        for sr in user.saved_recipes:
-            saved[sr.recipe_id] = sr.status
-
-    return render_template("recipes.html", user=user, recipes=all_recipes, saved=saved,
-                           search=search, tag=tag)
+    return render_template("recipes.html", user=user, recipes=all_recipes, search=search, tag=tag)
 
 
 @app.route("/recipe/<int:recipe_id>")
 @login_required
 def view_recipe(recipe_id):
-    """View a single recipe with ingredients, instructions, and comments."""
     user = get_current_user()
     recipe = Recipe.query.get_or_404(recipe_id)
     comments = RecipeComment.query.filter_by(recipe_id=recipe_id).order_by(
-        RecipeComment.created.desc()).all()
+        RecipeComment.created.desc()
+    ).all()
 
     ingredients = json.loads(recipe.ingredients) if recipe.ingredients else []
 
-    saved_status = None
-    if user.role == "subscriber":
-        sr = SavedRecipe.query.filter_by(user_id=user.id, recipe_id=recipe_id).first()
-        saved_status = sr.status if sr else None
-
     return render_template("view-recipe.html", user=user, recipe=recipe,
-                           ingredients=ingredients, comments=comments, saved_status=saved_status)
+                           ingredients=ingredients, comments=comments)
 
 
 @app.route("/recipe/<int:recipe_id>/comment", methods=["POST"])
 @login_required
 def add_recipe_comment(recipe_id):
-    """Add a comment and optional rating to a recipe."""
     user = get_current_user()
     Recipe.query.get_or_404(recipe_id)
-
     comment_text = request.form.get("comment", "").strip()
     rating_str = request.form.get("rating", "").strip()
 
@@ -956,66 +843,22 @@ def add_recipe_comment(recipe_id):
     if rating_str:
         try:
             rating = int(rating_str)
-            if rating < 1 or rating > 5:
+            if not 1 <= rating <= 5:
                 rating = None
         except ValueError:
-            rating = None
+            pass  # just leave it as None
 
-    comment = RecipeComment(
-        recipe_id=recipe_id,
-        user_id=user.id,
-        comment=comment_text,
-        rating=rating
-    )
-    db.session.add(comment)
+    db.session.add(RecipeComment(recipe_id=recipe_id, user_id=user.id, comment=comment_text, rating=rating))
     db.session.commit()
     flash("Comment added!", "success")
     return redirect(url_for("view_recipe", recipe_id=recipe_id))
 
 
-@app.route("/recipe/<int:recipe_id>/save", methods=["POST"])
-@subscriber_required
-def save_recipe(recipe_id):
-    """Save a recipe with a status: tried / favourite / want_to_try."""
-    user = get_current_user()
-    Recipe.query.get_or_404(recipe_id)
-    status = request.form.get("status", "want_to_try")
-
-    if status not in ("tried", "favourite", "want_to_try"):
-        flash("Invalid status.", "danger")
-        return redirect(url_for("view_recipe", recipe_id=recipe_id))
-
-    existing = SavedRecipe.query.filter_by(user_id=user.id, recipe_id=recipe_id).first()
-    if existing:
-        existing.status = status
-    else:
-        sr = SavedRecipe(user_id=user.id, recipe_id=recipe_id, status=status)
-        db.session.add(sr)
-
-    db.session.commit()
-    flash("Recipe saved!", "success")
-    return redirect(url_for("view_recipe", recipe_id=recipe_id))
-
-
-@app.route("/my-recipes")
-@subscriber_required
-def my_recipes():
-    """Show a subscriber's saved recipes grouped by status."""
-    user = get_current_user()
-    saved = SavedRecipe.query.filter_by(user_id=user.id).all()
-
-    grouped = {"favourite": [], "tried": [], "want_to_try": []}
-    for sr in saved:
-        grouped.get(sr.status, grouped["want_to_try"]).append(sr)
-
-    return render_template("my-recipes.html", user=user, grouped=grouped)
-
-
 @app.route("/add-recipe", methods=["GET", "POST"])
 @login_required
 def add_recipe():
-    """Allow any logged-in user to submit a new recipe."""
     user = get_current_user()
+
     if request.method == "POST":
         title = request.form.get("title", "").strip()
         description = request.form.get("description", "").strip()
@@ -1027,7 +870,6 @@ def add_recipe():
         tags = request.form.get("tags", "").strip()
         calories = request.form.get("calories_per_serving", "").strip()
 
-        # Collect ingredients from dynamic form fields
         ing_names = request.form.getlist("ingredient_name[]")
         ing_amounts = request.form.getlist("ingredient_amount[]")
         ingredients_list = [
@@ -1060,29 +902,21 @@ def add_recipe():
     return render_template("add-recipe.html", user=user)
 
 
-# ---------------------------------------------------------------------------
-# API endpoint for food search (AJAX)
-# ---------------------------------------------------------------------------
-
+# AJAX endpoint - used by the log-food page to search without a full reload
 @app.route("/api/food-search")
 @login_required
 def api_food_search():
-    """JSON endpoint for food search used by the log-food AJAX form."""
     query = request.args.get("q", "").strip()
     if not query or len(query) < 2:
         return jsonify({"results": []})
-    results = search_food_api(query)
-    return jsonify({"results": results})
+    return jsonify({"results": search_food_api(query)})
 
 
-# ---------------------------------------------------------------------------
-# Seed data
-# ---------------------------------------------------------------------------
+# ---- Seed data ----
 
 def seed_recipes():
-    """Seed the database with sample recipes if none exist."""
     if Recipe.query.first():
-        return
+        return  # already seeded, skip
 
     sample_recipes = [
         {
@@ -1183,15 +1017,10 @@ def seed_recipes():
     ]
 
     for r in sample_recipes:
-        recipe = Recipe(**r)
-        db.session.add(recipe)
+        db.session.add(Recipe(**r))
     db.session.commit()
-    print("[SEED] Sample recipes added.")
+    print("[seed] added sample recipes")
 
-
-# ---------------------------------------------------------------------------
-# Run
-# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     with app.app_context():
