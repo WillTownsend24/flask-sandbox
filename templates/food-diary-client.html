@@ -21,7 +21,7 @@
 <!-- Nutrition summary for the day -->
 <div class="stats-grid section-gap">
     <div class="stat-card">
-        <div class="stat-icon">🔥</div>
+        <div class="stat-icon"></div>
         <div class="stat-info">
             <div class="stat-value">{{ totals.calories | int }}</div>
             <div class="stat-label">kcal</div>
@@ -29,14 +29,14 @@
         </div>
     </div>
     <div class="stat-card">
-        <div class="stat-icon">💪</div>
+        <div class="stat-icon"></div>
         <div class="stat-info">
             <div class="stat-value">{{ totals.protein }}g</div>
             <div class="stat-label">Protein</div>
         </div>
     </div>
     <div class="stat-card">
-        <div class="stat-icon">🌾</div>
+        <div class="stat-icon"></div>
         <div class="stat-info">
             <div class="stat-value">{{ totals.carbs }}g</div>
             <div class="stat-label">Carbs</div>
@@ -55,7 +55,7 @@
 {% for meal_type, entries in meals.items() %}
 <div class="card section-gap">
     <h2 class="card-title meal-title meal-title--{{ meal_type }}">
-        {% if meal_type == 'breakfast' %}🌅{% elif meal_type == 'lunch' %}☀️{% elif meal_type == 'dinner' %}🌙{% else %}🍎{% endif %}
+        {% if meal_type == 'breakfast' %}{% elif meal_type == 'lunch' %}{% elif meal_type == 'dinner' %}{% else %}{% endif %}
         {{ meal_type | title }}
     </h2>
 

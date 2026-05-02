@@ -4,7 +4,7 @@
 
 <div class="page-header">
     <div>
-        <h1 class="page-title">Good {% if today.hour < 12 %}morning{% elif today.hour < 18 %}afternoon{% else %}evening{% endif %}, {{ user.full_name.split()[0] }} 👋</h1>
+        <h1 class="page-title">Good {% if today.hour < 12 %}morning{% elif today.hour < 18 %}afternoon{% else %}evening{% endif %}, {{ user.full_name.split()[0] }}</h1>
         <p class="page-subtitle">{{ today.strftime('%A, %d %B %Y') }}</p>
     </div>
     <div class="header-actions">
@@ -15,13 +15,13 @@
 
 {% if professional %}
 <div class="info-banner">
-    <span>👨‍⚕️</span>
+    <span>Professional</span>
     <span>Your health professional: <strong>{{ professional.full_name }}</strong>
     {% if professional.specialisation %} · {{ professional.specialisation }}{% endif %}</span>
 </div>
 {% else %}
 <div class="info-banner info-banner--warning">
-    <span>⚠️</span>
+    <span>Notice</span>
     <span>You haven't chosen a health professional yet.
     <a href="{{ url_for('choose_professional') }}">Find one now →</a></span>
 </div>
@@ -30,7 +30,7 @@
 <!-- Stat cards -->
 <div class="stats-grid">
     <div class="stat-card">
-        <div class="stat-icon">🔥</div>
+        <div class="stat-icon"></div>
         <div class="stat-info">
             <div class="stat-value">{{ totals.calories | int }}</div>
             <div class="stat-label">kcal today</div>
@@ -40,7 +40,7 @@
         </div>
     </div>
     <div class="stat-card">
-        <div class="stat-icon">💪</div>
+        <div class="stat-icon"></div>
         <div class="stat-info">
             <div class="stat-value">{{ totals.protein }}g</div>
             <div class="stat-label">Protein</div>
@@ -50,7 +50,7 @@
         </div>
     </div>
     <div class="stat-card">
-        <div class="stat-icon">🌾</div>
+        <div class="stat-icon"></div>
         <div class="stat-info">
             <div class="stat-value">{{ totals.carbs }}g</div>
             <div class="stat-label">Carbs</div>
@@ -60,7 +60,7 @@
         </div>
     </div>
     <div class="stat-card">
-        <div class="stat-icon">🥑</div>
+        <div class="stat-icon"></div>
         <div class="stat-info">
             <div class="stat-value">{{ totals.fat }}g</div>
             <div class="stat-label">Fat</div>
@@ -102,15 +102,24 @@
     </div>
     {% if guideline.notes %}
         <div class="guideline-note">
-            <strong>📝 Professional note:</strong> {{ guideline.notes }}
+            <strong>Professional note:</strong> {{ guideline.notes }}
         </div>
     {% endif %}
 </div>
 {% endif %}
 
-<!-- 7-day calorie chart -->
 <div class="card section-gap">
     <h2 class="card-title">7-Day Calorie History</h2>
+
+    <!-- ✅ Data for chart -->
+    <script id="chart-data" type="application/json">
+    {
+        "labels": {{ chart_labels | tojson }},
+        "calories": {{ chart_calories | tojson }},
+        "target": {{ guideline.daily_calories if guideline and guideline.daily_calories else 'null' }}
+    }
+    </script>
+
     <div class="chart-wrap">
         <canvas id="calorieChart"></canvas>
     </div>
@@ -153,22 +162,22 @@
     </div>
     <div class="health-stats-grid">
         <div class="health-stat">
-            <span class="health-icon">⚖️</span>
+            
             <span class="health-value">{{ user.weight_kg ~ ' kg' if user.weight_kg else '—' }}</span>
             <span class="health-label">Weight</span>
         </div>
         <div class="health-stat">
-            <span class="health-icon">📏</span>
+            
             <span class="health-value">{{ user.height_cm ~ ' cm' if user.height_cm else '—' }}</span>
             <span class="health-label">Height</span>
         </div>
         <div class="health-stat">
-            <span class="health-icon">❤️</span>
+            
             <span class="health-value">{{ user.blood_pressure or '—' }}</span>
             <span class="health-label">Blood Pressure</span>
         </div>
         <div class="health-stat">
-            <span class="health-icon">🎯</span>
+            
             <span class="health-value">{{ user.goal.replace('_', ' ').title() if user.goal else '—' }}</span>
             <span class="health-label">Goal</span>
         </div>
@@ -179,48 +188,69 @@
 
 {% block scripts %}
 <script>
-const labels = {{ chart_labels | safe }};
-const calories = {{ chart_calories | safe }};
-{% if guideline and guideline.daily_calories %}
-const calorieTarget = {{ guideline.daily_calories }};
-{% else %}
-const calorieTarget = null;
-{% endif %}
+document.addEventListener("DOMContentLoaded", function () {
 
-const ctx = document.getElementById('calorieChart').getContext('2d');
-const datasets = [{
-    label: 'Calories (kcal)',
-    data: calories,
-    backgroundColor: calories.map(c => calorieTarget && c > calorieTarget ? 'rgba(255,99,99,0.7)' : 'rgba(94,196,139,0.7)'),
-    borderColor: calories.map(c => calorieTarget && c > calorieTarget ? '#ff6363' : '#5ec48b'),
-    borderWidth: 2,
-    borderRadius: 6,
-}];
+    const dataElement = document.getElementById("chart-data");
+    if (!dataElement) return;
 
-if (calorieTarget) {
-    datasets.push({
-        label: 'Daily Target',
-        data: Array(labels.length).fill(calorieTarget),
-        type: 'line',
-        borderColor: '#f59e0b',
-        borderDash: [6, 4],
-        borderWidth: 2,
-        pointRadius: 0,
-        fill: false,
-    });
-}
+    const chartData = JSON.parse(dataElement.textContent);
 
-new Chart(ctx, {
-    type: 'bar',
-    data: { labels, datasets },
-    options: {
-        responsive: true,
-        plugins: { legend: { display: true } },
-        scales: {
-            y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
-            x: { grid: { display: false } }
-        }
+    const labels = chartData.labels || [];
+    const calories = (chartData.calories || []).map(Number);
+    const calorieTarget = chartData.target ? Number(chartData.target) : null;
+
+    console.log("Labels:", labels);
+    console.log("Calories:", calories);
+
+    const canvas = document.getElementById("calorieChart");
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+
+    const datasets = [{
+        label: 'Calories (kcal)',
+        data: calories,
+        backgroundColor: calories.map(c =>
+            calorieTarget && c > calorieTarget
+                ? 'rgba(255,99,99,0.7)'
+                : 'rgba(94,196,139,0.7)'
+        ),
+        borderColor: calories.map(c =>
+            calorieTarget && c > calorieTarget
+                ? '#ff6363'
+                : '#5ec48b'
+        ),
+        borderWidth: 2
+    }];
+
+    if (calorieTarget) {
+        datasets.push({
+            label: 'Daily Target',
+            data: Array(labels.length).fill(calorieTarget),
+            type: 'line',
+            borderColor: '#f59e0b',
+            borderDash: [6, 4],
+            borderWidth: 2,
+            pointRadius: 0
+        });
     }
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
 });
 </script>
 {% endblock %}

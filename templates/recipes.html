@@ -43,16 +43,16 @@
 
         <div class="recipe-meta-row">
             {% if recipe.prep_time_mins or recipe.cook_time_mins %}
-                <span class="recipe-meta-item">⏱ {{ (recipe.prep_time_mins or 0) + (recipe.cook_time_mins or 0) }} mins</span>
+                <span class="recipe-meta-item" {{ (recipe.prep_time_mins or 0) + (recipe.cook_time_mins or 0) }} mins</span>
             {% endif %}
             {% if recipe.cost_estimate %}
-                <span class="recipe-meta-item">💷 {{ recipe.cost_estimate }}</span>
+                <span class="recipe-meta-item"> {{ recipe.cost_estimate }}</span>
             {% endif %}
             {% if recipe.calories_per_serving %}
-                <span class="recipe-meta-item">🔥 {{ recipe.calories_per_serving | int }} kcal</span>
+                <span class="recipe-meta-item"> {{ recipe.calories_per_serving | int }} kcal</span>
             {% endif %}
             {% if recipe.servings %}
-                <span class="recipe-meta-item">🍽 {{ recipe.servings }} servings</span>
+                <span class="recipe-meta-item"> {{ recipe.servings }} servings</span>
             {% endif %}
         </div>
 
@@ -66,9 +66,9 @@
 
         {% if saved.get(recipe.id) %}
             <div class="saved-badge saved-badge--{{ saved[recipe.id] }}">
-                {% if saved[recipe.id] == 'favourite' %}❤️ Favourite
-                {% elif saved[recipe.id] == 'tried' %}✅ Tried
-                {% else %}🔖 Want to Try{% endif %}
+                {% if saved[recipe.id] == 'favourite' %} Favourite
+                {% elif saved[recipe.id] == 'tried' %} Tried
+                {% else %} Want to Try{% endif %}
             </div>
         {% endif %}
     </a>

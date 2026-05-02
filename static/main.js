@@ -1,11 +1,11 @@
 /**
- * main.js — NutriTrack client-side utilities
- * Auto-dismiss flash messages, star rating UX, misc helpers.
+ * main.js for nutritrack
+ * using in dashboard for graphing etc
  */
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    // --- Auto-dismiss flash messages after 4 seconds ---
+    //auto dismiss flash messages after 4 seconds ---
     document.querySelectorAll('.flash').forEach(el => {
         setTimeout(() => {
             el.style.transition = 'opacity 0.5s';
@@ -14,20 +14,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 4000);
     });
 
-    // --- Star rating: highlight stars on hover/select ---
+
+
+    // star rating: highlight stars when hovering mouse
     const starRatings = document.querySelectorAll('.star-rating');
     starRatings.forEach(container => {
+
         const labels = Array.from(container.querySelectorAll('.star-label'));
 
         labels.forEach((label, idx) => {
             const star = label.querySelector('.star');
             const input = label.querySelector('input');
 
+
             label.addEventListener('mouseenter', () => {
                 labels.forEach((l, i) => {
                     l.querySelector('.star').style.color = i <= idx ? 'var(--amber)' : 'var(--text-dim)';
                 });
             });
+
+
 
             label.addEventListener('mouseleave', () => {
                 const checked = container.querySelector('input:checked');
@@ -37,6 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
 
+
             input.addEventListener('change', () => {
                 labels.forEach((l, i) => {
                     l.querySelector('.star').style.color = i <= idx ? 'var(--amber)' : 'var(--text-dim)';
@@ -45,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- Confirm delete prompts (data-confirm attribute) ---
+    //confirm delete prompts
     document.querySelectorAll('[data-confirm]').forEach(el => {
         el.addEventListener('click', e => {
             if (!confirm(el.dataset.confirm)) e.preventDefault();

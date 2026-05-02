@@ -156,17 +156,30 @@ class Notification(db.Model):
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        if "user_id" not in session:
+        user = get_current_user()
+
+        if user is None:
+            session.clear()
             flash("Please log in to access this page.", "warning")
             return redirect(url_for("login"))
+
         return f(*args, **kwargs)
+
     return decorated
 
 
 def get_current_user():
     if "user_id" not in session:
         return None
-    return User.query.get(session["user_id"])
+
+    user = User.query.get(session["user_id"])
+
+    # user deleted / db reset but session still exists FIXED IT
+    if user is None:
+        session.clear()
+        return None
+
+    return user
 
 
 @app.context_processor
@@ -182,6 +195,7 @@ def inject_globals():
 def search_food_api(query):
     try:
         url = "https://world.openfoodfacts.org/cgi/search.pl"
+
         params = {
             "search_terms": query,
             "search_simple": 1,
@@ -190,18 +204,31 @@ def search_food_api(query):
             "page_size": 8,
             "fields": "product_name,nutriments,brands"
         }
-        resp = requests.get(url, params=params, timeout=5)
+
+        headers = {
+            "User-Agent": "NutriTrack/1.0 (student project)"
+        }
+
+        resp = requests.get(
+            url,
+            params=params,
+            headers=headers,
+            timeout=5
+        )
+
         resp.raise_for_status()
         data = resp.json()
 
         results = []
+
         for product in data.get("products", []):
             name = product.get("product_name", "").strip()
+
             if not name:
                 continue
 
             n = product.get("nutriments", {})
-            # some products have missing values, default to 0 and round
+
             results.append({
                 "name": name,
                 "brand": product.get("brands", ""),
@@ -212,10 +239,10 @@ def search_food_api(query):
                 "fibre": round(n.get("fiber_100g", 0) or 0, 1),
                 "sugar": round(n.get("sugars_100g", 0) or 0, 1),
             })
+
         return results
 
     except Exception as e:
-        # don't crash the whole request just because the food API is down
         print(f"[food api error] {e}")
         return []
 
@@ -228,6 +255,7 @@ def get_daily_totals(user_id, target_date):
 
     for e in entries:
         factor = e.quantity_g / 100.0
+        totals["calories"] += (e.calories or 0) * factor
         totals["protein"] += (e.protein_g or 0) * factor
         totals["carbs"] += (e.carbs_g or 0) * factor
         totals["fat"] += (e.fat_g or 0) * factor
@@ -374,8 +402,8 @@ def subscriber_home():
     user = get_current_user()
     today = datetime.now()
 
-    totals = get_daily_totals(user.id, today)
-    today_entries = FoodEntry.query.filter_by(user_id=user.id, logged_date=today).order_by(FoodEntry.logged_at).all()
+    totals = get_daily_totals(user.id, today.date())
+    today_entries = FoodEntry.query.filter_by(user_id=user.id, logged_date=today.date())
     guideline = NutritionalGuideline.query.filter_by(subscriber_id=user.id).order_by(NutritionalGuideline.created.desc()).first()
 
 
@@ -385,7 +413,7 @@ def subscriber_home():
     for i in range(6, -1, -1):
         d = today - timedelta(days=i)
         chart_labels.append(d.strftime("%a %d"))
-        chart_calories.append(get_daily_totals(user.id, d)["calories"])
+        chart_calories.append(get_daily_totals(user.id, d.date())["calories"])
 
     professional = User.query.get(user.professional_id) if user.professional_id else None
 
@@ -396,8 +424,8 @@ def subscriber_home():
         totals=totals,
         today_entries=today_entries,
         guideline=guideline,
-        chart_labels=json.dumps(chart_labels),
-        chart_calories=json.dumps(chart_calories),
+        chart_labels=chart_labels,
+        chart_calories=chart_calories,
         professional=professional
         
     )
@@ -684,7 +712,7 @@ def view_client(subscriber_id):
     for i in range(6, -1, -1):
         d = today - timedelta(days=i)
         chart_labels.append(d.strftime("%a %d"))
-        chart_calories.append(get_daily_totals(subscriber.id, d)["calories"])
+        chart_calories.append(get_daily_totals(subscriber.id, d.date())["calories"])
 
     meals = {"breakfast": [], "lunch": [], "dinner": [], "snack": []}
     for e in entries:
@@ -809,8 +837,7 @@ def recipes():
 
     all_recipes = q.order_by(Recipe.created.desc()).all()
 
-    return render_template("recipes.html", user=user, recipes=all_recipes, search=search, tag=tag)
-
+    return render_template("recipes.html", saved={}, user=user, recipes=all_recipes, search=search, tag=tag)
 
 @app.route("/recipe/<int:recipe_id>")
 @login_required
@@ -853,6 +880,20 @@ def add_recipe_comment(recipe_id):
     flash("Comment added!", "success")
     return redirect(url_for("view_recipe", recipe_id=recipe_id))
 
+@app.route("/save-recipe/<int:recipe_id>", methods=["POST"])
+@login_required
+def save_recipe(recipe_id):
+    user = get_current_user()
+    status = request.form.get("status")
+
+    if not status:
+        flash("Please select a save option.", "warning")
+        return redirect(url_for("view_recipe", recipe_id=recipe_id))
+
+    # TEMP: just confirm it works (replace with DB later)
+    flash(f"Recipe saved as '{status}'!", "success")
+
+    return redirect(url_for("view_recipe", recipe_id=recipe_id))
 
 @app.route("/add-recipe", methods=["GET", "POST"])
 @login_required
